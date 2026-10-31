@@ -62,6 +62,12 @@ VARIANT_NAMES = {   # normalised variant value -> how a user would name it
     "programming-language-javascript": "JavaScript", "programming-language-typescript": "TypeScript", "programming-language-powershell": "PowerShell",
     "platform-android": "Android", "platform-ios": "iOS", "platform-windows": "Windows", "platform-web": "a web app", "rest-api": "the REST API",
 }
+VARIANT_ALIASES = {   # how users actually say it; a variant question must match one (case-insensitive regex)
+    "the Azure CLI": r"\baz\b|\bcli\b|command[- ]line", "Azure PowerShell": r"powershell|\b[A-Z][a-z]+-Az[A-Z]",
+    "the Azure portal": r"portal", "a web app": r"\bweb\b|browser|javascript", "an ARM template": r"\barm\b|resource manager template|json template",
+    "C#": r"c#|\.net|dotnet|csharp", ".NET": r"c#|\.net|dotnet", "JavaScript": r"javascript|node(\.js)?\b|\bjs\b",
+    "TypeScript": r"typescript|\bts\b", "the REST API": r"\brest\b|http (request|call)|api call", "Go": r"\bgo(lang)?\b",
+}
 ABSENT_SERVICES = ["Azure Cosmos DB", "Azure Key Vault", "Azure SQL Database", "Azure SQL Managed Instance", "Azure Databricks", "Microsoft Purview",
                    "Microsoft Sentinel", "Microsoft Defender for Cloud", "Microsoft Intune", "Power BI", "Azure OpenAI in Foundry Models",
                    "Azure AI Search", "Azure Machine Learning", "Azure Database for MySQL", "Azure Virtual Desktop", "Azure DevOps Boards"]
@@ -347,7 +353,7 @@ def filter_(a):
             qw = words(q.replace(r.get("token") or "\0", " "))
             if grams(qw, LEAK_N) & grams(words(text), LEAK_N): stats["lexical_leak"] += 1; continue
             if r["category"] == "identifier" and r["token"] not in q: stats["token_missing"] += 1; continue
-            if r["category"] == "variant" and not re.search(re.escape(r["variant_name"].replace("the ", "").replace("an ", "")), q, re.I):
+            if r["category"] == "variant" and not re.search(VARIANT_ALIASES.get(r["variant_name"], re.escape(r["variant_name"])), q, re.I):
                 stats["variant_missing"] += 1; continue
             cat = g.get("category") if r["category"] == "auto" and g.get("category") else r["category"]
         else:
