@@ -14,7 +14,7 @@ Run tests: `uv run pytest -q` (74 pass). No background jobs are running; no llam
 | Nightly incremental update | `docsearch update [--pull] [--dry-run] [--canary]`, `docsearch verify`; `deploy/nightly.sh` + systemd units (NOT installed) |
 | Eval | `eval/` (58 questions, README with results/caveats, scripts `run_eval.py`, `rerank_eval.py`, `expand_eval.py`) |
 
-Register later with: `claude mcp add docsearch -- /home/vivo/repo/Microsoft/LLM/docsearch/.venv/bin/docsearch serve`
+Register later with: `claude mcp add docsearch -- /mnt/D500G/space/Microsoft/LLM/docsearch/.venv/bin/docsearch serve`
 Install nightly: see header of `deploy/docsearch-update.service`.
 
 ## Decisions taken

@@ -8,9 +8,8 @@ from pathlib import Path
 
 import httpx
 
-from .embed import EmbedServer
+from .embed import HF, EmbedServer
 
-HF = Path("~/.cache/huggingface/hub").expanduser()
 MODELS = {   # name -> glob under the HF cache
     "bge-v2-m3-q8": "models--gpustack--bge-reranker-v2-m3-GGUF/snapshots/*/bge-reranker-v2-m3-Q8_0.gguf",
     "bge-v2-m3-q4": "models--sabafallah--bge-reranker-v2-m3-Q4_K_M-GGUF/snapshots/*/*.gguf",

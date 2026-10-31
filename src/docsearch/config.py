@@ -39,7 +39,7 @@ class Config:
 
 def load_config(path: str | Path) -> Config:
     data = tomllib.loads(Path(path).read_text())
-    root = Path(data["root"])
+    root = (Path(path).parent / data["root"]).resolve()   # relative roots resolve against the config file
     repos = tuple(
         Repo(r["name"], root / r["name"], r.get("docs_root", "."), r.get("weight", 1.0), r.get("url_base"), r.get("restrict", False))
         for r in data["repo"]

@@ -7,9 +7,9 @@ from pathlib import Path
 
 import httpx
 
-from .embed import EmbedServer
+from .embed import EmbedServer, hf_file
 
-GEMMA = Path("~/.lmstudio/models/lmstudio-community/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-Q4_K_M.gguf").expanduser()
+GEMMA = hf_file("lmstudio-community/gemma-4-E4B-it-GGUF", "gemma-4-E4B-it-Q4_K_M.gguf")
 PROMPT = ("You help search Microsoft Azure documentation. Rewrite the user's question as a short list of search keywords and phrases "
           "using the exact terminology Azure documentation uses (role names, feature names, CLI/PowerShell nouns, synonyms). "
           "Output only one line of space-separated keywords, max 25 words. Question: {q}")

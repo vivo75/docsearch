@@ -1,6 +1,7 @@
 """Embedding client for a local llama-server (design 6.3). Vectors are L2-normalized by the server."""
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import time
@@ -10,9 +11,17 @@ from pathlib import Path
 
 import httpx
 
-BUNDLED_NOMIC = Path(
-    "~/.lmstudio/.internal/bundled-models/nomic-ai/nomic-embed-text-v1.5-GGUF/nomic-embed-text-v1.5.Q4_K_M.gguf"
-).expanduser()
+HF = Path(os.environ.get("HF_HUB_CACHE") or Path(os.environ.get("HF_HOME", "~/.cache/huggingface")) / "hub").expanduser()
+
+
+def hf_file(repo: str, filename: str) -> Path:
+    """Path of `filename` from HF repo `repo` in the local HF cache (`hf download <repo> <filename>`).
+    Returns the would-be path even if missing, so llama-server reports a clear error."""
+    hits = sorted((HF / ("models--" + repo.replace("/", "--"))).glob(f"snapshots/*/{filename}"))
+    return hits[-1] if hits else HF / ("models--" + repo.replace("/", "--")) / "snapshots" / "MISSING" / filename
+
+
+NOMIC = hf_file("nomic-ai/nomic-embed-text-v1.5-GGUF", "nomic-embed-text-v1.5.Q4_K_M.gguf")
 MODEL_ID = "nomic-embed-text-v1.5.Q4_K_M"
 DOC_PREFIX = "search_document: "
 QUERY_PREFIX = "search_query: "
@@ -22,7 +31,7 @@ MAX_CHARS = 5500           # per-slot context is 2048 tokens; stay well under fo
 class EmbedServer:
     """Starts `llama-server --embedding` unless one already answers on the port."""
 
-    def __init__(self, model: Path = BUNDLED_NOMIC, device: str = "Vulkan0", port: int = 8099,
+    def __init__(self, model: Path = NOMIC, device: str = "Vulkan0", port: int = 8099,
                  ctx: int = 16384, parallel: int = 8):
         self.model, self.device, self.port, self.ctx, self.parallel = model, device, port, ctx, parallel
         self.url = f"http://127.0.0.1:{port}"

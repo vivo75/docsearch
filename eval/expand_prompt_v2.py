@@ -5,7 +5,7 @@ from docsearch import evalrun as E, expand as X
 from docsearch.config import load_config
 from docsearch.rerank import Reranker, RerankServer
 from docsearch.server import _Embeddings, SERVER_CONFIG
-H=Path("/home/vivo/repo/Microsoft/LLM/docsearch"); C2=H/"eval/results/expansions_v2.json"
+H=Path(__file__).resolve().parent.parent; C2=H/"eval/results/expansions_v2.json"
 X.PROMPT=("You help search Microsoft Azure documentation. Write the title of the Learn article that would best answer the question, "
           "then add keywords: the official Azure service and feature names, built-in role or setting names, and CLI/PowerShell/portal nouns "
           "the documentation uses instead of the user's everyday wording. Output one line, max 30 words, no explanation. Question: {q}")

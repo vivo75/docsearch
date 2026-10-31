@@ -6,6 +6,6 @@ Description=Incremental update of the docsearch index
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/vivo/repo/Microsoft/LLM/docsearch
-ExecStart=/home/vivo/repo/Microsoft/LLM/docsearch/deploy/nightly.sh
+WorkingDirectory=/mnt/D500G/space/Microsoft/LLM/docsearch
+ExecStart=/mnt/D500G/space/Microsoft/LLM/docsearch/deploy/nightly.sh
 Nice=10

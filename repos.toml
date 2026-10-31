@@ -1,5 +1,5 @@
-# Corpus configuration. Paths are relative to `root`.
-root = "/home/vivo/repo/Microsoft"
+# Corpus configuration. Paths are relative to `root`; a relative `root` is resolved against this file's directory.
+root = "../.."
 
 # weight: retrieval boost (design 6.4); exclude_dirs: not standalone pages (includes/themes).
 [[repo]]
