@@ -85,11 +85,18 @@ def wr(name, rows):
     (OUT / name).write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
 
 
+_local = threading.local()
+
+
 def connect():
-    return sqlite3.connect(f"file:{DB}?mode=ro", uri=True, check_same_thread=False)
+    """One read-only connection per thread: a shared connection interleaves cursors across worker threads."""
+    if not hasattr(_local, "db"):
+        _local.db = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    return _local.db
 
 
 def page_text(db, doc_id, max_tokens=7000):
+    db = connect()              # per-thread connection (the argument is kept for call-site compatibility)
     parts, tok = [], 0
     for hp, text, n in db.execute("SELECT heading_path, text, token_count FROM chunks WHERE doc_id=? ORDER BY rid", (doc_id,)):
         if tok + n > max_tokens:
