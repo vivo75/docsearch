@@ -1,0 +1,1 @@
+- [docsearch project](docsearch-project.md) — option-2 local hybrid docs index; moving to 7900 XTX server, read LLM/docsearch/HANDOFF.md ("Move to the new server") first

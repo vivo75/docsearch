@@ -1,0 +1,5 @@
+data/
+.venv/
+__pycache__/
+eval/results/*.npy
+.pytest_cache/

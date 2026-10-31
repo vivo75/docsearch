@@ -1,0 +1,10 @@
+{
+  "_about": "Pooled judgments added AFTER reviewing system output for misses: pages that clearly answer the question although they were not the single gold page chosen up front. Used only by --lenient; strict scores use the original gold.",
+  "q001": {"also_ok": ["azure-docs/articles/virtual-network/tutorial-restrict-network-access-to-resources.md"], "why": "limits Storage access to chosen virtual networks via service endpoints"},
+  "q004": {"also_ok": ["azure-docs/articles/azure-functions/functions-create-scheduled-function.md", "azure-docs/articles/azure-functions/scenario-scheduled-tasks.md"], "why": "both are how-to/quickstart guides for functions that run on a schedule"},
+  "q006": {"also_ok": ["azure-docs/articles/app-service/tutorial-connect-msi-key-vault.md", "azure-docs/articles/app-service/tutorial-connect-msi-key-vault-python.md", "azure-docs/articles/app-service/tutorial-connect-msi-key-vault-javascript.md", "azure-docs/articles/app-service/tutorial-connect-msi-key-vault-php.md"], "why": "App Service reading Key Vault secrets through managed identity, no secrets in app settings"},
+  "q010": {"also_ok": ["azure-docs/articles/frontdoor/front-door-custom-domain-https.md"], "why": "HTTPS on a Front Door custom domain (classic tier page)"},
+  "q015": {"also_ok": ["azure-docs/articles/networking/load-balancer-content-delivery/load-balancing-content-delivery-overview.md"], "why": "overview that compares Front Door, Application Gateway and the other load-balancing options"},
+  "q017": {"also_ok": ["azure-docs/articles/networking/design-guide/hybrid-connectivity.md"], "why": "'Plan hybrid connectivity: VPN vs ExpressRoute' answers the question directly"},
+  "q018": {"also_ok": ["azure-docs/articles/service-bus-messaging/compare-messaging-services.md"], "why": "product comparison of Event Grid, Event Hubs and Service Bus"}
+}

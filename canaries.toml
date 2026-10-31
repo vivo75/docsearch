@@ -1,0 +1,4 @@
+# Eval-question ids that currently rank a gold page in the top 2; an update must keep >= min_pass of them in the top 5.
+[canary]
+min_pass = 0.85
+ids = ["q001", "q002", "q003", "q004", "q005", "q006", "q007", "q009", "q019", "q020", "q025", "q026", "q027", "q028", "q029"]

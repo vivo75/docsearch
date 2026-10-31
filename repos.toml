@@ -1,0 +1,84 @@
+# Corpus configuration. Paths are relative to `root`.
+root = "/home/vivo/repo/Microsoft"
+
+# weight: retrieval boost (design 6.4); exclude_dirs: not standalone pages (includes/themes).
+[[repo]]
+name = "azure-docs"
+url_base = "https://learn.microsoft.com/azure"
+docs_root = "articles"
+weight = 1.0
+
+[[repo]]
+name = "azure-dev-docs"
+url_base = "https://learn.microsoft.com/azure/developer"
+docs_root = "articles"
+weight = 1.0
+
+[[repo]]
+name = "architecture-center"
+url_base = "https://learn.microsoft.com/azure/architecture"
+docs_root = "docs"
+weight = 1.0
+
+[[repo]]
+name = "azure-rest-api-specs"
+docs_root = "."
+weight = 0.3
+
+[[repo]]
+name = "finops-toolkit"
+url_base = "https://learn.microsoft.com/cloud-computing/finops"
+docs_root = "docs-mslearn"
+weight = 1.0
+
+[[repo]]
+name = "azure-pipelines-tasks"
+docs_root = "."
+weight = 1.0
+
+[[repo]]
+name = "sre-agent"
+docs_root = "."
+weight = 1.0
+
+[[repo]]
+name = "azure-cli"
+docs_root = "."
+weight = 1.0
+
+[[repo]]
+name = "mcp"
+docs_root = "."
+weight = 1.0
+
+[[repo]]
+name = "azure-rest-api-specs-examples"
+docs_root = "."
+weight = 1.0
+
+# Added 2026-10-31: sections that moved out of azure-docs (shallow clones, history since 2026-01-01).
+[[repo]]
+name = "azure-aks-docs"
+url_base = "https://learn.microsoft.com/azure"
+docs_root = "articles"
+weight = 1.0
+
+[[repo]]
+name = "azure-monitor-docs"
+url_base = "https://learn.microsoft.com/azure"
+docs_root = "articles"
+weight = 1.0
+
+[[repo]]
+name = "azure-compute-docs"
+url_base = "https://learn.microsoft.com/azure"
+docs_root = "articles"
+weight = 1.0
+
+# Cmdlet reference of the latest Az release only (older azps-* folders are other versions of the same cmdlets). Lower weight: very many near-identical pages.
+[[repo]]
+name = "azure-docs-powershell"
+url_base = "https://learn.microsoft.com/powershell/module"
+docs_root = "azps-16.4.0"
+restrict = true
+weight = 0.5

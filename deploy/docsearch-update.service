@@ -1,0 +1,11 @@
+# Install (user units):  mkdir -p ~/.config/systemd/user && cp deploy/docsearch-update.* ~/.config/systemd/user/
+#                        systemctl --user daemon-reload && systemctl --user enable --now docsearch-update.timer
+# Edit WorkingDirectory if the project moves.
+[Unit]
+Description=Incremental update of the docsearch index
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/vivo/repo/Microsoft/LLM/docsearch
+ExecStart=/home/vivo/repo/Microsoft/LLM/docsearch/deploy/nightly.sh
+Nice=10
