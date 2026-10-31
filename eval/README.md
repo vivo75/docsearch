@@ -35,3 +35,23 @@ neither is a reliable win.
   so its MRR/R@1 are understated. On the 49 questions it can reach, R@10 ties (0.898) and R@5 is 0.796 vs 0.857.
 - The grep baseline is a proxy (idf-ranked files), not an agent iterating; a real agent would do better and cost more tokens.
 - Unanswerable detection is weak (AUC 0.62): top scores barely separate answerable from unanswerable queries.
+
+## bge-m3 full-corpus test (2026-10-31, RX 7900 XTX) — NOT adopted
+`eval/bge_full.py embed` re-embedded all 267,518 chunks with bge-m3 Q8 (ROCm0, cls pooling, no prefixes) in 83 min
+(53.6 chunks/s; the RX 6600 ran 6/s). `eval/bge_eval.py`, same questions, cached expansions, bge-v2-m3 rerank, configs fixed in advance.
+Log: `data/bge-eval.log`; summary json in `results/*-bge-vs-nomic.json`. Index kept at `data/exp-bge-m3.db` for re-tests on a larger eval set.
+
+| SERVER config (expand_vec + rerank) | R@1 | R@5 | R@10 | MRR | nDCG@10 | var.acc | unans.AUC |
+|---|---|---|---|---|---|---|---|
+| nomic, strict | .654 | .885 | .942 | .757 | .785 | 1.000 | .490 |
+| bge-m3, strict | .654 | .923 | .942 | .760 | .791 | .833 | .513 |
+| nomic, lenient | .750 | .942 | .942 | .833 | .837 | 1.000 | .490 |
+| bge-m3, lenient | .712 | .962 | .962 | .808 | .820 | .833 | .513 |
+
+Pre-registered bar: >= 2 more questions at R@5 (or clearly higher MRR) on BOTH strict and lenient, no AUC/canary regression.
+Strict: +2 questions at R@5, MRR flat. Lenient: +1 question at R@5, MRR -.025, R@1 -.038. Variant accuracy 1.0 -> .833 (1 of 6).
+Canaries 15/15 both; AUC ~.5 both. **Fails the bar on lenient** -> stay on nomic. Per-question churn is large in both directions
+(q008 11->4, q006 7->2, q020 3->1; q015 10->miss, q024 2->4, several 1->2): the models disagree more than the totals suggest,
+which is a reason to re-run this on a bigger eval set rather than to declare bge-m3 worse.
+Nomic numbers on the copied index reproduce the old machine (strict R@5 .885, MRR .757 vs .753; lenient .942 / .833 vs .838).
+Without the rerank stage bge-m3 is no better anywhere (hybrid strict MRR .672 vs .676) except vector-only R@10 (.942 vs .865).
