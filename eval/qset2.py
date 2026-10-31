@@ -225,6 +225,7 @@ class LlmServer(EmbedServer):
 
 def chat(http, url, prompt, schema, max_tokens=400, temperature=0.7, seed=0):
     body = {"messages": [{"role": "user", "content": prompt}], "temperature": temperature, "max_tokens": max_tokens, "seed": seed,
+            "chat_template_kwargs": {"enable_thinking": False},     # --reasoning-budget 0 alone does not stop Qwen3.8 thinking
             "response_format": {"type": "json_schema", "json_schema": {"name": "out", "schema": schema}}}
     for attempt in range(3):
         try:
@@ -236,7 +237,8 @@ def chat(http, url, prompt, schema, max_tokens=400, temperature=0.7, seed=0):
 
 
 def run_parallel(todo, fn, out_name, workers):
-    done = {r["item"] for r in rd(out_name)}; todo = [t for t in todo if t["item"] not in done]
+    ok = [r for r in rd(out_name) if "error" not in r.get("gen", r)]      # failed rows are retried
+    wr(out_name, ok); done = {r["item"] for r in ok}; todo = [t for t in todo if t["item"] not in done]
     log(f"{len(done)} done, {len(todo)} to do")
     lock = threading.Lock(); f = (OUT / out_name).open("a"); t0 = time.time(); n = 0
     def one(t):
@@ -260,6 +262,7 @@ COMMON = ("Rules: write as an Azure practitioner who has NOT read this page and 
           "from the page that answers it. If the page cannot support such a question, set skip=true.")
 GEN_SCHEMA = {"type": "object", "properties": {"skip": {"type": "boolean"}, "question": {"type": "string"}, "evidence": {"type": "string"},
               "category": {"type": "string", "enum": ["howto", "conceptual", "troubleshooting"]}}, "required": ["skip", "question", "evidence"]}
+GEN_SCHEMA_AUTO = {**GEN_SCHEMA, "required": ["skip", "question", "evidence", "category"]}
 UNANS_SCHEMA = {"type": "object", "properties": {"question": {"type": "string"}}, "required": ["question"]}
 CAT_TASK = {
     "howto": "Write a question asking HOW to accomplish a concrete task that the page explains.",
@@ -293,7 +296,8 @@ def gen_prompt(db, it, rng):
     task = CAT_TASK[it["category"]].format(token=it.get("token"), variant_name=it.get("variant_name"),
                                            others=", ".join(VARIANT_NAMES.get(v, v) for v in it.get("other_variants", []) + [it.get("variant", "")]))
     if it["category"] == "identifier": style = STYLE[1][0]
-    return f"{task}\nWrite it as {style}.\n{COMMON}\n\n=== PAGE: {it['title']}\n{page_text(db, it['doc_id'])}", GEN_SCHEMA, style
+    schema = GEN_SCHEMA_AUTO if it["category"] == "auto" else GEN_SCHEMA
+    return f"{task}\nWrite it as {style}.\n{COMMON}\n\n=== PAGE: {it['title']}\n{page_text(db, it['doc_id'])}", schema, style
 
 
 def generate(a):
@@ -305,7 +309,7 @@ def generate(a):
             prompt, schema, style = gen_prompt(db, it, rng)
             out = chat(http, srv.url, prompt, schema, seed=int(hashlib.md5(it["item"].encode()).hexdigest()[:6], 16))
             return {**it, "style": style, "gen": out}
-        run_parallel(items if not a.limit else items[:a.limit], fn, "generated.jsonl", a.parallel)
+        run_parallel(items if not a.limit else random.Random(SEED).sample(items, a.limit), fn, "generated.jsonl", a.parallel)
 
 
 # ------------------------------------------------------------------------------------------------------------- filter
@@ -325,7 +329,7 @@ def filter_(a):
     for r in rd("generated.jsonl"):
         g = r.get("gen", {})
         if "error" in g: stats["llm_error"] += 1; continue
-        q = (g.get("question") or "").strip()
+        q = re.sub(r"^\s*(how-?to( task)?|conceptual|concept|troubleshooting|question)\s*:\s*", "", (g.get("question") or "").strip(), flags=re.I)
         if r["kind"] != "unanswerable":
             if g.get("skip") or not q: stats["skipped_by_llm"] += 1; continue
             text = page_text(db, r["doc_id"], 10**6) + ("\n" + page_text(db, r["doc_id2"], 10**6) if r["kind"] == "pair" else "")
@@ -478,7 +482,7 @@ def judge(a):
         srcs = list(r["pages"]) + [s for s in (c.get("source"), c.get("source2")) if s and c.get("category") != "identifier"]
         for s in dict.fromkeys(srcs):
             todo.append({"item": f"{r['item']}|{s}", "qi": i, "question": r["question"], "source": s})
-    if a.limit: todo = todo[:a.limit]
+    if a.limit: todo = random.Random(SEED).sample(todo, a.limit)
     build = excerpt_builder()
     with LlmServer(JUDGE_MODEL, 8093, a.parallel, a.parallel * 5120, a.device) as srv:
         http = httpx.Client()
