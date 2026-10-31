@@ -83,3 +83,7 @@ Old: RX 6600 8 GB (Vulkan), ~224 GB/s. New: **RX 7900 XTX 24 GB (gfx1100)**, ~96
 - If the index schema/vectors are kept (nomic 768-d), `data/current.db` can be copied as is (1.5 GB). If bge-m3 wins, the whole index must be re-embedded and `store.DIMS`, `embed.py` (MODEL_ID, pooling cls, no DOC/QUERY prefix), server `_Embeddings` and canary.py all need the new model; content_hash includes MODEL_ID so the nightly update re-embeds everything.
 - Still true: MCP server not registered (`claude mcp add docsearch -- <path>/.venv/bin/docsearch serve`), nightly timer not installed.
 - Claude memory: copy `handoff-memory/*` into `~/.claude/projects/<mangled-project-path>/memory/` on the new machine (see handoff-memory/README.md).
+
+## Running long jobs (2026-10-31)
+Use `../scope/scoperun.sh <slug> <log> <cmd...>` (systemd user scope `ds-<slug>`) and `scopestatus/scopewait/scopestop/scopels.sh`
+from `LLM/scope/` (see its README). Never `pkill`/`pgrep -f`: they match their own command line.
