@@ -72,3 +72,14 @@ Human review of 50 sampled items (`qset2/review.md`, applied via `qset2/human_re
 v1 findings: 4 of the 6 v1 "unanswerable" questions now have grade-2 pages (AKS docs were added; Cosmos DB / Key Vault / VM SLA have
 partial answers in architecture, backup and SAP pages), so v1 unanswerable AUC numbers used wrong labels. 45/52 v1 answerable gold
 pages get grade 2 from the judge (most of the rest are single pages of two-page comparisons, graded 1 correctly).
+
+## Adoption rule (pre-registered 2026-11-01, before any qset2 test run)
+Tool: `eval/compare.py --set qset2 --split test --systems <current>,<candidate>` (paired bootstrap over questions, 10,000 resamples).
+A candidate replaces the current server configuration only if, on the **qset2 test split**:
+1. the 95% CI of ΔMRR is entirely above 0 on **both** strict and lenient scoring;
+2. no 95% CI of ΔR@5 or ΔnDCG@10 (strict or lenient) lies entirely below 0;
+3. unanswerable AUC does not drop by more than 0.05, variant accuracy does not drop by more than 0.05;
+4. canaries pass (15/15).
+Latency is reported but is not a gate (user priority: precision over latency). Tuning and exploration use the dev split
+(qset2 dev + v1); the test split is run once per decision. A candidate that fails stays available for re-test only on a new
+or enlarged test set, not by retuning on this one.
