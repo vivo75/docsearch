@@ -1,0 +1,31 @@
+{
+ "_about": "Human review of review.md (2026-11-01). Applied by `qset2.py finalize` on top of the LLM judgments. add_ok = pages a human says answer the question (in-corpus only; out-of-corpus suggestions are listed under corpus_gaps). set_grade overrides judge grades. exclude removes a question.",
+ "summary": {"questions_realistic": "25/25", "gold_correct": "21/25", "judge_agreement": "24/25"},
+ "add_ok": {
+  "n0033": ["azure-docs/articles/migrate/migrate-appliance.md", "azure-docs/articles/migrate/add-server-credentials.md"],
+  "n0183": ["azure-docs/articles/app-service/provision-resource-bicep.md"],
+  "n0445": ["azure-docs/articles/web-application-firewall/afds/waf-front-door-exclusion.md"],
+  "n0434": ["azure-docs/articles/azure-government/documentation-government-overview-dod.md"],
+  "n0417": ["azure-docs/articles/update-manager/tutorial-webhooks-using-runbooks.md"],
+  "n0439": ["azure-docs/articles/role-based-access-control/conditions-role-assignments-portal.md"],
+  "n0175": ["azure-dev-docs/articles/azure-mcp-server/tools/application-insights.md"]
+ },
+ "set_grade": {
+  "n0462": {"azure-docs/articles/frontdoor/support-help.md": 1, "azure-docs/articles/firewall/support-help.md": 1,
+            "azure-docs/articles/application-gateway/application-gateway-support-help.md": 1}
+ },
+ "exclude": {"n0419": "identifier gold = pages that merely contain `InstallAzureCli`; none explains it"},
+ "notes": {
+  "n0555": "kept as unanswerable for THIS corpus (Cosmos DB docs absent), but answerable on Learn: a corpus gap, not a retrieval target",
+  "n0423": "gold only if the answerer infers the service is deprecated / retiring",
+  "n0175": "question may name the wrong tool (azmcp rather than Azure CLI)"
+ },
+ "corpus_gaps": {
+  "Azure CLI reference (learn.microsoft.com/cli/azure/*)": ["n0419", "n0625", "n0482"],
+  "Azure IoT Operations docs": ["n0013"],
+  "Support articles (learn.microsoft.com/troubleshoot/azure/*)": ["n0027"],
+  ".NET API reference": ["n0393"],
+  "Cosmos DB docs": ["n0555"],
+  "azure-government/documentation-government-overview (not in index)": ["n0434"]
+ }
+}

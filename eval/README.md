@@ -55,3 +55,20 @@ Canaries 15/15 both; AUC ~.5 both. **Fails the bar on lenient** -> stay on nomic
 which is a reason to re-run this on a bigger eval set rather than to declare bge-m3 worse.
 Nomic numbers on the copied index reproduce the old machine (strict R@5 .885, MRR .757 vs .753; lenient .942 / .833 vs .838).
 Without the rerank stage bge-m3 is no better anywhere (hybrid strict MRR .672 vs .676) except vector-only R@10 (.942 vs .865).
+
+## qset2: larger question set (2026-11-01)
+`qset2/questions.jsonl`: 626 questions (566 answerable + 60 unanswerable), split dev 313 / test 313; built by `qset2.py`
+(Qwen3.8-27B generation from stratified pages, grounding/lexical-leak/near-duplicate filters, pooled judgments by gemma-4-26B-A4B,
+17,524 graded pairs). The v1 58 questions stay dev-only; `qset2/judgments_v1.json` re-judges them with the same rules.
+Use **test** only for adoption decisions.
+
+Human review of 50 sampled items (`qset2/review.md`, applied via `qset2/human_review.json`):
+- questions realistic 25/25; strict gold correct 21/25 (vague question, identifier whose literal-match gold does not explain it
+  [excluded], better pages exist for a comparison, one unanswerable that is answerable on Learn);
+- judge agreement 24/25 (one grade-2 that should be 1: another service's "support and help" page);
+- **12 of the 20 extra pages the reviewer named are not in the corpus**: Azure CLI reference (`cli/azure/*`), Azure IoT Operations,
+  support articles (`troubleshoot/azure/*`), .NET API reference, Cosmos DB. Coverage, not ranking, limits these questions.
+
+v1 findings: 4 of the 6 v1 "unanswerable" questions now have grade-2 pages (AKS docs were added; Cosmos DB / Key Vault / VM SLA have
+partial answers in architecture, backup and SAP pages), so v1 unanswerable AUC numbers used wrong labels. 45/52 v1 answerable gold
+pages get grade 2 from the judge (most of the rest are single pages of two-page comparisons, graded 1 correctly).

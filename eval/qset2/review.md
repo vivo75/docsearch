@@ -11,19 +11,19 @@ For each: is it a realistic question, and does the gold page answer it?
 gold: [azure-docs/articles/migrate/best-practices-security.md](https://learn.microsoft.com/azure/migrate/best-practices-security)
 
 - [ ] realistic and gold correct
-- [ ] realistic but gold wrong/incomplete
+- [x] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: The question is vague, without knowing which kind of appliance we are migrating from. this doc could help disambiguate: https://learn.microsoft.com/azure/migrate/migrate-appliance - this one is more specific about credentials: https://learn.microsoft.com/en-us/azure/migrate/add-server-credentials 
 
 ### A2. n0183 (howto)
 > How can I upgrade the App Service plan tier of a Python web app deployed with azd by modifying its Bicep configuration?
 
 gold: [azure-dev-docs/articles/python/quickstart-python-scale-bicep.md](https://learn.microsoft.com/azure/developer/python/quickstart-python-scale-bicep)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: this page came VERY close: https://learn.microsoft.com/azure/app-service/provision-resource-bicep It shows the exact Microsoft.Web/serverfarms Bicep resource and demonstrates that the App Service Plan tier is controlled by sku.name
 
 ### A3. n0419 (identifier)
 > I am setting up a Jenkins controller on an Azure VM and saw `InstallAzureCli` in the setup instructions, but I'm unsure what that specific identifier refers to or how to execute it.
@@ -31,26 +31,26 @@ gold: [azure-dev-docs/articles/python/quickstart-python-scale-bicep.md](https://
 gold: `azure-cli/README.md`, `azure-cli/doc/install_troubleshooting.md`, [azure-compute-docs/articles/virtual-machines/linux/freebsd-intro-on-azure.md](https://learn.microsoft.com/azure/virtual-machines/linux/freebsd-intro-on-azure), [azure-dev-docs/articles/jenkins/deploy-from-github-to-aks.md](https://learn.microsoft.com/azure/developer/jenkins/deploy-from-github-to-aks)
 
 - [ ] realistic and gold correct
-- [ ] realistic but gold wrong/incomplete
+- [x] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: these documents do not mention `InstallAzureCli` but are strong contenders: this one explain jenkins in azure in detail: https://learn.microsoft.com/azure/developer/jenkins/deploy-to-azure-app-service-using-azure-cli - this one explain how to install az cli on Linux: https://learn.microsoft.com/cli/azure/install-azure-cli-linux
 
 ### A4. n0445 (multi_page)
 > When troubleshooting a false positive on Azure Front Door versus Application Gateway, how do the available scope options for applying WAF rules or exclusions differ between the two services?
 
 gold: [azure-docs/articles/web-application-firewall/afds/waf-front-door-tuning.md](https://learn.microsoft.com/azure/web-application-firewall/afds/waf-front-door-tuning), [azure-docs/articles/web-application-firewall/ag/application-gateway-waf-configuration.md](https://learn.microsoft.com/azure/web-application-firewall/ag/application-gateway-waf-configuration)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: also: This document directly explains the exclusion scopes available in Azure Front Door WAF https://learn.microsoft.com/azure/web-application-firewall/afds/waf-front-door-exclusion - 
 
 ### A5. n0462 (troubleshooting)
 > Where should I submit an issue if I encounter a bug in the Azure CLI tools while managing my Web Application Firewall?
 
 gold: [azure-docs/articles/web-application-firewall/support-help.md](https://learn.microsoft.com/azure/web-application-firewall/support-help)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -60,7 +60,7 @@ gold: [azure-docs/articles/web-application-firewall/support-help.md](https://lea
 
 gold: none (should be UNANSWERABLE from this corpus)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -71,17 +71,17 @@ gold: none (should be UNANSWERABLE from this corpus)
 gold: [azure-docs/articles/azure-resource-manager/templates/template-specs.md](https://learn.microsoft.com/azure/azure-resource-manager/templates/template-specs)
 expected variant: `azure-cli`
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: https://learn.microsoft.com/cli/azure/ts explain how to use az cli for template specs
 
 ### A8. n0030 (conceptual)
 > When a single Azure Storage queue hits its throughput ceiling, what specific HTTP status codes does the service return, and what retry strategy is recommended to handle them?
 
 gold: [azure-docs/articles/storage/queues/scalability-targets.md](https://learn.microsoft.com/azure/storage/queues/scalability-targets)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -91,7 +91,7 @@ gold: [azure-docs/articles/storage/queues/scalability-targets.md](https://learn.
 
 gold: [azure-dev-docs/articles/dev-tunnels/security.md](https://learn.microsoft.com/azure/developer/dev-tunnels/security)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -101,7 +101,7 @@ gold: [azure-dev-docs/articles/dev-tunnels/security.md](https://learn.microsoft.
 
 gold: [azure-compute-docs/articles/virtual-machines/sizes/high-performance-compute/hbv4-performance.md](https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/hbv4-performance), [azure-compute-docs/articles/virtual-machines/sizes/high-performance-compute/hbv5-performance.md](https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/hbv5-performance), [azure-compute-docs/articles/virtual-machines/sizes/high-performance-compute/hbv5-series-overview.md](https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/hbv5-series-overview), [azure-compute-docs/articles/virtual-machines/sizes/high-performance-compute/hx-performance.md](https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/hx-performance), [azure-compute-docs/articles/virtual-machines/sizes/high-performance-compute/setup-mpi.md](https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/setup-mpi), [azure-docs/articles/high-performance-computing/performance-benchmarking/optimize-performance.md](https://learn.microsoft.com/azure/high-performance-computing/performance-benchmarking/optimize-performance)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -112,26 +112,26 @@ gold: [azure-compute-docs/articles/virtual-machines/sizes/high-performance-compu
 gold: [azure-docs/articles/azure-government/documentation-government-ase-disa-cap.md](https://learn.microsoft.com/azure/azure-government/documentation-government-ase-disa-cap), [azure-docs/articles/azure-government/documentation-government-welcome.md](https://learn.microsoft.com/azure/azure-government/documentation-government-welcome)
 
 - [ ] realistic and gold correct
-- [ ] realistic but gold wrong/incomplete
+- [x] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: these two answer a bigger part of the question https://learn.microsoft.com/en-us/azure/azure-government/documentation-government-overview-dod and https://learn.microsoft.com/azure/azure-government/documentation-government-overview - documentation-government-ase-disa-cap.md may be good at a later stage when the user require knowledge on how to connect the service, documentation-government-welcome.md may be useful only to provide an high level overview that may not even be required by the question
 
 ### A12. n0482 (troubleshooting)
 > az dt route 400 bad request Cloud Shell
 
 gold: [azure-docs/articles/digital-twins/troubleshoot-known-issues.md](https://learn.microsoft.com/azure/digital-twins/troubleshoot-known-issues)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: the authoritative document https://learn.microsoft.com/cli/azure/dt should be in the best 5
 
 ### A13. n0530 (unanswerable)
 > I'm trying to enable the new 'Auto-Scaling Priority Queue' feature in my Application Gateway for Containers to handle bursty traffic, but I can't find the toggle in the portal; where is this setting located?
 
 gold: none (should be UNANSWERABLE from this corpus)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -142,7 +142,7 @@ gold: none (should be UNANSWERABLE from this corpus)
 gold: [azure-docs/articles/app-service/environment/configure-network-settings.md](https://learn.microsoft.com/azure/app-service/environment/configure-network-settings)
 expected variant: `azure-portal`
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -152,17 +152,17 @@ expected variant: `azure-portal`
 
 gold: [azure-docs/articles/iot-operations/develop-edge-apps/overview-state-store.md](https://learn.microsoft.com/azure/iot-operations/develop-edge-apps/overview-state-store)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: a close second are https://learn.microsoft.com/azure/iot-operations/manage-mqtt-broker/howto-use-state-store and https://learn.microsoft.com/azure/iot-operations/connect-to-cloud/concept-mqtt-broker (in this order)
 
 ### A16. n0149 (howto)
 > I need to run a specific application that relies on TCP/IP traffic over my InfiniBand interface rather than using standard MPI verbs, so how do I configure the VM to support this IP over InfiniBand communication?
 
 gold: [azure-compute-docs/articles/virtual-machines/extensions/enable-infiniband.md](https://learn.microsoft.com/azure/virtual-machines/extensions/enable-infiniband)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -172,27 +172,27 @@ gold: [azure-compute-docs/articles/virtual-machines/extensions/enable-infiniband
 
 gold: [azure-docs/articles/digital-twins/how-to-manage-model.md](https://learn.microsoft.com/azure/digital-twins/how-to-manage-model), [azure-docs/articles/digital-twins/how-to-parse-models.md](https://learn.microsoft.com/azure/digital-twins/how-to-parse-models), [azure-docs/articles/digital-twins/tutorial-code.md](https://learn.microsoft.com/azure/digital-twins/tutorial-code)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: if available also https://learn.microsoft.com/dotnet/api/azure.digitaltwins.core.digitaltwinsclient.getmodelsasync provide valuable information
 
 ### A18. n0423 (multi_page)
 > When migrating a Cloud Services (extended support) deployment to a supported Guest OS family, what specific .NET framework and Visual Studio versions are required to target Guest OS family 7, and what prerequisites regarding virtual network configuration must still be met in the .cscfg file?
 
 gold: [azure-docs/articles/cloud-services-extended-support/deploy-prerequisite.md](https://learn.microsoft.com/azure/cloud-services-extended-support/deploy-prerequisite), [azure-docs/articles/cloud-services-extended-support/cloud-services-guestos-family-2-3-4-retirement.md](https://learn.microsoft.com/azure/cloud-services-extended-support/cloud-services-guestos-family-2-3-4-retirement)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: the answer is gold only if the LLM will be able to infer that the service is deprecated and will be retired in the near future.
 
 ### A19. n0495 (troubleshooting)
 > why savings plan utilization exceeds 100 percent
 
 gold: [azure-docs/articles/cost-management-billing/savings-plan/troubleshoot-savings-plan-utilization.md](https://learn.microsoft.com/azure/cost-management-billing/savings-plan/troubleshoot-savings-plan-utilization)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -203,9 +203,9 @@ gold: [azure-docs/articles/cost-management-billing/savings-plan/troubleshoot-sav
 gold: none (should be UNANSWERABLE from this corpus)
 
 - [ ] realistic and gold correct
-- [ ] realistic but gold wrong/incomplete
+- [x] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: example of docs that can be an answer: https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-query-container, https://learn.microsoft.com/en-us/azure/cosmos-db/index-policy. The incipt of an LLM answer could be: "In Azure Cosmos DB, the partition key and the indexing policy influence query performance in different ways, and for a cross-partition query both matter."
 
 ### A21. n0593 (variant)
 > How do I authenticate my local PowerShell session to the Azure US Government cloud before starting the Azure MCP Server?
@@ -213,7 +213,7 @@ gold: none (should be UNANSWERABLE from this corpus)
 gold: [azure-dev-docs/articles/azure-mcp-server/how-to/connect-sovereign-clouds.md](https://learn.microsoft.com/azure/developer/azure-mcp-server/how-to/connect-sovereign-clouds)
 expected variant: `powershell`
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -223,17 +223,17 @@ expected variant: `powershell`
 
 gold: [azure-docs/articles/bastion/whats-new.md](https://learn.microsoft.com/azure/bastion/whats-new)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: Also https://learn.microsoft.com/en-us/troubleshoot/azure/bastion/troubleshoot-bastion-entra-id-portal-rdp
 
 ### A23. n0338 (howto)
 > Add OpenAPI annotations to Spring Boot controller
 
 gold: [azure-docs/articles/app-service/tutorial-ai-integrate-azure-ai-agent-java.md](https://learn.microsoft.com/azure/app-service/tutorial-ai-integrate-azure-ai-agent-java)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
 - note:
@@ -243,20 +243,20 @@ gold: [azure-docs/articles/app-service/tutorial-ai-integrate-azure-ai-agent-java
 
 gold: [azure-docs/articles/automation/learn/automation-tutorial-runbook-textual-python-3.md](https://learn.microsoft.com/azure/automation/learn/automation-tutorial-runbook-textual-python-3), [azure-docs/articles/automation/learn/automation-tutorial-runbook-textual.md](https://learn.microsoft.com/azure/automation/learn/automation-tutorial-runbook-textual)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: Also https://learn.microsoft.com/en-us/azure/update-manager/tutorial-webhooks-using-runbooks
 
 ### A25. n0439 (multi_page)
 > If I assign the User Access Administrator role to a team, can I restrict their ability to modify access permissions based on specific resource tags using Azure ABAC conditions?
 
 gold: [azure-docs/articles/role-based-access-control/rbac-and-directory-admin-roles.md](https://learn.microsoft.com/azure/role-based-access-control/rbac-and-directory-admin-roles), [azure-docs/articles/role-based-access-control/conditions-overview.md](https://learn.microsoft.com/azure/role-based-access-control/conditions-overview)
 
-- [ ] realistic and gold correct
+- [x] realistic and gold correct
 - [ ] realistic but gold wrong/incomplete
 - [ ] unrealistic / badly phrased
-- note:
+- note: also https://learn.microsoft.com/en-us/azure/role-based-access-control/conditions-role-assignments-portal
 
 ## B. Judge decisions (25)
 The judge graded these pooled pages (2 = answers, 1 = partial, 0 = not useful). Do you agree?
@@ -267,7 +267,7 @@ The judge graded these pooled pages (2 = answers, 1 = partial, 0 = not useful). 
 page: `azure-rest-api-specs/specification/ai/data-plane/ContentUnderstanding/readme.md`
 judge: _While the page provides a pattern for how to use the `--tag` flag with AutoRest for a different API version, it does not contain information regarding the 'Changes API' or the specific '2023-03-01-preview' version requested._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -279,7 +279,7 @@ judge: _While the page provides a pattern for how to use the `--tag` flag with A
 page: [azure-docs/articles/container-apps/migrate-java-github-copilot-app-modernization.md](https://learn.microsoft.com/azure/container-apps/migrate-java-github-copilot-app-modernization)
 judge: _While the page describes an automated deployment process using GitHub Copilot for Java applications, it focuses on a specific migration tool rather than general CI/CD pipeline automation, and it only provides links to external documentation for setting up standard CI/CD pipelines._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -291,7 +291,7 @@ judge: _While the page describes an automated deployment process using GitHub Co
 page: [azure-aks-docs/articles/aks/delete-node-pool.md](https://learn.microsoft.com/azure/aks/delete-node-pool)
 judge: _The user is asking how to delete an entire Resource Group containing AKS, but the page only provides instructions for deleting a specific node pool within an AKS cluster._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -303,7 +303,7 @@ judge: _The user is asking how to delete an entire Resource Group containing AKS
 page: [azure-docs/articles/route-server/tutorial-protect-route-server-ddos.md](https://learn.microsoft.com/azure/route-server/tutorial-protect-route-server-ddos)
 judge: _The page provides a direct, step-by-step guide on how to find the specific ASN and Peer IP addresses within the Azure portal to configure the NVA._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -315,7 +315,7 @@ judge: _The page provides a direct, step-by-step guide on how to find the specif
 page: [azure-docs/articles/azure-resource-manager/templates/template-functions-deployment.md](https://learn.microsoft.com/azure/azure-resource-manager/templates/template-functions-deployment)
 judge: _The page explains how to use the `variables()` function to retrieve values in ARM templates, which directly addresses the user's need to reference a parameter/variable within a template structure, though it doesn't explicitly use the word 'delimit', the syntax provided ([variables('name')]) is the solution to the problem described._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -329,9 +329,9 @@ judge: _The page explicitly provides the GitHub issues URL for the Azure CLI, wh
 
 - [ ] agree
 - [ ] should be 2
-- [ ] should be 1
+- [x] should be 1
 - [ ] should be 0
-- note:
+- note: the page is referring to a different resources, to be 2 the page should be https://learn.microsoft.com/azure/web-application-firewall/support-help
 
 ### B7. n0332 → grade **0**
 > How do I determine if an Event Hubs failure is temporary so my C++ application can automatically retry the operation?
@@ -339,7 +339,7 @@ judge: _The page explicitly provides the GitHub issues URL for the Azure CLI, wh
 page: [azure-docs/articles/durable-task/common/durable-task-error-handling.md](https://learn.microsoft.com/azure/durable-task/common/durable-task-error-handling)
 judge: _The page discusses error handling for Azure Durable Functions in C# and PowerShell, which is completely unrelated to the user's request regarding Event Hubs and C++._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -351,7 +351,7 @@ judge: _The page discusses error handling for Azure Durable Functions in C# and 
 page: [azure-docs/articles/synapse-analytics/sql-data-warehouse/sql-data-warehouse-overview-manage-security.md](https://learn.microsoft.com/azure/synapse-analytics/sql-data-warehouse/sql-data-warehouse-overview-manage-security)
 judge: _The page provides direct troubleshooting steps for connection issues, specifically mentioning the need for server-level firewall rules to allow public IP addresses and ensuring that the local/corporate network allows outgoing communication on TCP port 1433._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -363,7 +363,7 @@ judge: _The page provides direct troubleshooting steps for connection issues, sp
 page: [azure-aks-docs/articles/aks/prepare-flex-node-host-identity.md](https://learn.microsoft.com/azure/aks/prepare-flex-node-host-identity)
 judge: _The page discusses assigning roles to identities for AKS flex nodes, but it does not mention Kusto (Azure Data Explorer) or how to assign roles to a Kusto cluster principal._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -375,7 +375,7 @@ judge: _The page discusses assigning roles to identities for AKS flex nodes, but
 page: [azure-docs/articles/microsoft-discovery/concept-project-rbac.md](https://learn.microsoft.com/azure/microsoft-discovery/concept-project-rbac)
 judge: _The page discusses Azure RBAC and project-level access control, but it does not mention or explain 'entitlement groups' or how they specifically restrict search results._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -387,7 +387,7 @@ judge: _The page discusses Azure RBAC and project-level access control, but it d
 page: [azure-aks-docs/articles/aks-hybrid-edge/windows-server/kubernetes-concepts.md](https://learn.microsoft.com/azure/aks-hybrid-edge/windows-server/kubernetes-concepts)
 judge: _The page provides a conceptual definition of what a DaemonSet is, but it does not provide any kubectl commands or instructions on how to check the deployment status of pods._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -399,7 +399,7 @@ judge: _The page provides a conceptual definition of what a DaemonSet is, but it
 page: [architecture-center/docs/databases/idea/combine-relational-nosql-content.md](https://learn.microsoft.com/azure/architecture/databases/idea/combine-relational-nosql-content)
 judge: _The page provides a specific architectural pattern (polyglot persistence) that demonstrates how to decompose a workload into relational and NoSQL components to optimize for both cost and performance/scalability, though it focuses more on data decomposition than general workload decomposition._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -411,7 +411,7 @@ judge: _The page provides a specific architectural pattern (polyglot persistence
 page: [azure-dev-docs/articles/ansible/aks-configure-cni-networking.md](https://learn.microsoft.com/azure/developer/ansible/aks-configure-cni-networking)
 judge: _The page contains a specific section that provides the exact Azure CLI command requested to delete a resource group._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -423,7 +423,7 @@ judge: _The page contains a specific section that provides the exact Azure CLI c
 page: [azure-docs/articles/application-gateway/application-gateway-diagnostics.md](https://learn.microsoft.com/azure/application-gateway/application-gateway-diagnostics)
 judge: _The page discusses Application Gateway logs, whereas the question specifically asks about 'Azure Storage Actions', making the content irrelevant to the user's specific query._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -435,11 +435,11 @@ judge: _The page discusses Application Gateway logs, whereas the question specif
 page: [azure-dev-docs/articles/azure-mcp-server/tools/azure-monitor.md](https://learn.microsoft.com/azure/developer/azure-mcp-server/tools/azure-monitor)
 judge: _While the page discusses Azure MCP Server tools for Azure Monitor, it does not contain the specific command for retrieving code optimization recommendations from Application Insights._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
-- note:
+- note: also maybe the question is wrong the tool isn't Azure Cli but `azmcp` the page then is https://learn.microsoft.com/en-us/azure/developer/azure-mcp-server/tools/application-insights 
 
 ### B16. n0456 → grade **1**
 > Why does my Virtual Machine Scale Set fail to scale out even when I apply heavy load to every individual instance, and what specific metric condition must be met to trigger a scale event?
@@ -447,7 +447,7 @@ judge: _While the page discusses Azure MCP Server tools for Azure Monitor, it do
 page: [azure-compute-docs/articles/virtual-machine-scale-sets/virtual-machine-scale-sets-autoscale-portal.md](https://learn.microsoft.com/azure/virtual-machine-scale-sets/virtual-machine-scale-sets-autoscale-portal)
 judge: _The page provides an example of how to set up a scale-out rule using an average metric, which implies that scaling is based on the average load across instances rather than individual instance load, but it does not explicitly state this as the reason for the user's failure._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -459,7 +459,7 @@ judge: _The page provides an example of how to set up a scale-out rule using an 
 page: [architecture-center/docs/patterns/compensating-transaction.md](https://learn.microsoft.com/azure/architecture/patterns/compensating-transaction)
 judge: _The page discusses how to handle partial failures and maintain data consistency using compensating transactions, but it does not address 'cascading failures,' which is a specific phenomenon where one failure triggers a chain reaction of failures across a system._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -471,7 +471,7 @@ judge: _The page discusses how to handle partial failures and maintain data cons
 page: [azure-docs/articles/app-service/environment/networking.md](https://learn.microsoft.com/azure/app-service/environment/networking)
 judge: _The page directly answers the question by specifying the exact setting name ('Allow new private endpoints') and the location within the Azure portal (the App Service Environment configuration pane)._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -483,7 +483,7 @@ judge: _The page directly answers the question by specifying the exact setting n
 page: [azure-aks-docs/articles/aks/supported-kubernetes-versions.md](https://learn.microsoft.com/azure/aks/supported-kubernetes-versions)
 judge: _The page discusses Kubernetes version support and upgrade policies, but it contains no information regarding the '--etcd-cafile' argument or how to configure etcd in AKS._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -495,7 +495,7 @@ judge: _The page discusses Kubernetes version support and upgrade policies, but 
 page: [azure-docs/articles/resiliency/resiliency-whats-new.md](https://learn.microsoft.com/azure/resiliency/resiliency-whats-new)
 judge: _The page mentions that drill tracking includes attestation, but it does not provide the specific action required within the interface to conclude the execution or finalize that attestation._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -507,7 +507,7 @@ judge: _The page mentions that drill tracking includes attestation, but it does 
 page: [azure-docs/articles/azure-resource-manager/management/manage-private-link-access-commands.md](https://learn.microsoft.com/azure/azure-resource-manager/management/manage-private-link-access-commands)
 judge: _The page provides a PowerShell command (`Get-AzResourceManagementPrivateLink`) that takes a `-ResourceGroupName` parameter, which directly answers how to list/get a private link within a specific resource group._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -519,7 +519,7 @@ judge: _The page provides a PowerShell command (`Get-AzResourceManagementPrivate
 page: [architecture-center/docs/virtual-machines/baseline-content.md](https://learn.microsoft.com/azure/architecture/virtual-machines/baseline-content)
 judge: _The page explicitly identifies 'Azure Update Manager' as the service to manage OS updates for Windows and Linux virtual machines and describes it as a solution to manage and govern software updates._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -531,7 +531,7 @@ judge: _The page explicitly identifies 'Azure Update Manager' as the service to 
 page: [azure-docs/articles/api-management/api-management-howto-provision-self-hosted-gateway.md](https://learn.microsoft.com/azure/api-management/api-management-howto-provision-self-hosted-gateway)
 judge: _The page only covers the initial provisioning of the gateway resource in the Azure portal and does not contain any information regarding Kubernetes deployment configurations, logging, or syslog integration._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -543,7 +543,7 @@ judge: _The page only covers the initial provisioning of the gateway resource in
 page: [azure-docs/articles/app-service/reference-app-settings.md](https://learn.microsoft.com/azure/app-service/reference-app-settings)
 judge: _The page contains the specific environment variable `WEBSITE_NODE_DEFAULT_VERSION` and provides a link to documentation on how to show/configure the Node.js version, which directly addresses the user's intent._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0
@@ -555,7 +555,7 @@ judge: _The page contains the specific environment variable `WEBSITE_NODE_DEFAUL
 page: [azure-compute-docs/articles/virtual-machines/linux/linux-remote-desktop-options.md](https://learn.microsoft.com/azure/virtual-machines/linux/linux-remote-desktop-options)
 judge: _The page discusses Linux VDI architectures and general security best practices for remote desktops, but it contains no information regarding the specific PowerShell command `New-AzIoTOperationsServiceBrokerAuthorization` or IoT operations._
 
-- [ ] agree
+- [x] agree
 - [ ] should be 2
 - [ ] should be 1
 - [ ] should be 0

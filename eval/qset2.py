@@ -524,6 +524,7 @@ def finalize(a):
         it, src = r["item"].split("|", 1)
         if r.get("grade") is not None: grades[it][src] = r["grade"]; reasons[r["item"]] = r.get("reason", "")
     url = dict(((f"{r[0]}/{r[1]}"), r[2]) for r in db.execute("SELECT repo, path, url FROM docs"))
+    hr = json.loads((OUT / "human_review.json").read_text()) if (OUT / "human_review.json").exists() else {}
     stats, kept = Counter(), defaultdict(list)
     for c in rd("candidates.jsonl"):
         g = grades.get(c["item"])
@@ -562,8 +563,13 @@ def finalize(a):
             if c.get("token"): q["token"] = c["token"]
             if c.get("unans_kind"): q["unans_kind"] = c["unans_kind"]
             qs.append(q)
-            g = grades[c["item"]]
-            judg[qid] = {"also_ok": sorted(s for s, v in g.items() if v == 2 and s not in gold), "grades": g}
+            g = dict(grades[c["item"]])
+            g.update(hr.get("set_grade", {}).get(qid, {}))
+            human = [s for s in hr.get("add_ok", {}).get(qid, []) if s not in gold]
+            for s in human: g[s] = 2
+            judg[qid] = {"also_ok": sorted(s for s, v in g.items() if v == 2 and s not in gold), "grades": g, **({"human_ok": human} if human else {})}
+    for qid, why in hr.get("exclude", {}).items():
+        qs = [q for q in qs if q["id"] != qid]; judg.pop(qid, None); stats[f"human_excluded"] += 1
     v1 = {"_about": "v1 questions re-judged by the qset2 judge (same rules). Compare with eval/judgments.json."}
     for it, g in grades.items():
         if it.startswith("v1:"): v1[it[3:]] = {"also_ok": sorted(s for s, v in g.items() if v == 2), "grades": g}
@@ -604,8 +610,9 @@ def review(qs, grades, reasons, url):
         L += [f"### B{i}. {q['id']} → grade **{g}**", f"> {q['question']}", "", f"page: {link(s)}",
               f"judge: _{reasons.get(q['item'] + '|' + s, '')}_", "", "- [ ] agree", "- [ ] should be 2", "- [ ] should be 1",
               "- [ ] should be 0", "- note:", ""]
-    (OUT / "review.md").write_text("\n".join(L))
-    log("wrote", OUT / "review.md")
+    dest = OUT / ("review.md" if not (OUT / "human_review.json").exists() else "review-sample-regenerated.md")
+    dest.write_text("\n".join(L))
+    log("wrote", dest)
 
 
 def main():

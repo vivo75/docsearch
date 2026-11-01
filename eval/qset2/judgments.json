@@ -984,7 +984,8 @@
   "also_ok": [
    "azure-docs/articles/data-factory/create-self-hosted-integration-runtime.md",
    "azure-docs/articles/data-factory/data-movement-security-considerations.md",
-   "azure-docs/articles/migrate/add-server-credentials.md"
+   "azure-docs/articles/migrate/add-server-credentials.md",
+   "azure-docs/articles/migrate/migrate-appliance.md"
   ],
   "grades": {
    "azure-docs/articles/migrate/best-practices-security.md": 2,
@@ -1011,8 +1012,13 @@
    "azure-docs/articles/container-apps/migrate-spring-cloud.md": 0,
    "azure-docs/articles/automation/shared-resources/credentials.md": 0,
    "azure-docs/articles/data-factory/data-movement-security-considerations.md": 2,
-   "architecture-center/docs/hybrid/azure-local-baseline-content.md": 1
-  }
+   "architecture-center/docs/hybrid/azure-local-baseline-content.md": 1,
+   "azure-docs/articles/migrate/migrate-appliance.md": 2
+  },
+  "human_ok": [
+   "azure-docs/articles/migrate/migrate-appliance.md",
+   "azure-docs/articles/migrate/add-server-credentials.md"
+  ]
  },
  "n0034": {
   "also_ok": [],
@@ -5708,7 +5714,9 @@
   }
  },
  "n0183": {
-  "also_ok": [],
+  "also_ok": [
+   "azure-docs/articles/app-service/provision-resource-bicep.md"
+  ],
   "grades": {
    "azure-docs/articles/app-service/tutorial-python-postgresql-app-django.md": 0,
    "azure-docs/articles/app-service/tutorial-python-postgresql-app-flask.md": 1,
@@ -5723,12 +5731,15 @@
    "azure-dev-docs/articles/python/overview-azd-templates.md": 1,
    "azure-docs/articles/app-service/manage-scale-per-app.md": 1,
    "azure-dev-docs/articles/azure-mcp-server/how-to/deploy-remote-mcp-server-copilot-studio.md": 0,
-   "azure-docs/articles/app-service/provision-resource-bicep.md": 1,
+   "azure-docs/articles/app-service/provision-resource-bicep.md": 2,
    "azure-docs/articles/app-service/tutorial-php-mysql-app.md": 0,
    "azure-aks-docs/articles/aks/azure-app-configuration.md": 0,
    "azure-docs/articles/azure-functions/functions-rollback-deployments.md": 0,
    "azure-docs/articles/service-connector/how-to-build-connections-with-iac-tools.md": 0
-  }
+  },
+  "human_ok": [
+   "azure-docs/articles/app-service/provision-resource-bicep.md"
+  ]
  },
  "n0184": {
   "also_ok": [
@@ -12798,7 +12809,8 @@
    "azure-compute-docs/articles/virtual-machines/windows/template-description.md",
    "azure-docs/articles/automation/automation-child-runbooks.md",
    "azure-docs/articles/data-factory/control-flow-for-each-activity.md",
-   "azure-docs/articles/durable-task/common/durable-task-fan-in-fan-out.md"
+   "azure-docs/articles/durable-task/common/durable-task-fan-in-fan-out.md",
+   "azure-docs/articles/update-manager/tutorial-webhooks-using-runbooks.md"
   ],
   "grades": {
    "azure-docs/articles/automation/learn/automation-tutorial-runbook-textual-python-3.md": 1,
@@ -12820,12 +12832,15 @@
    "azure-compute-docs/articles/virtual-machines/windows/java.md": 1,
    "azure-docs/articles/automation/graphical-runbook-sdk.md": 1,
    "azure-docs/articles/network-watcher/network-watcher-monitor-with-azure-automation.md": 0,
-   "azure-docs/articles/update-manager/tutorial-webhooks-using-runbooks.md": 1,
+   "azure-docs/articles/update-manager/tutorial-webhooks-using-runbooks.md": 2,
    "azure-docs/articles/load-balancer/load-balancer-multiple-ip.md": 0,
    "azure-docs/articles/automation/automation-runbook-execution.md": 1,
    "azure-compute-docs/articles/virtual-machines/compare-compute-products.md": 1,
    "azure-docs/articles/automation/shared-resources/schedules.md": 1
-  }
+  },
+  "human_ok": [
+   "azure-docs/articles/update-manager/tutorial-webhooks-using-runbooks.md"
+  ]
  },
  "n0418": {
   "also_ok": [],
@@ -12854,33 +12869,6 @@
    "architecture-center/docs/guide/multitenant/considerations/agentic-systems.md": 0,
    "azure-docs/articles/service-bus-messaging/service-bus-migrate-azure-credentials.md": 0,
    "azure-docs/articles/azure-signalr/signalr-howto-authorize-application.md": 0
-  }
- },
- "n0419": {
-  "also_ok": [],
-  "grades": {
-   "azure-dev-docs/articles/jenkins/scale-deployments-using-vm-agents.md": 0,
-   "azure-dev-docs/articles/jenkins/configure-on-linux-vm.md": 0,
-   "azure-dev-docs/articles/jenkins/deploy-to-linux-vm-using-azure-devops-services.md": 0,
-   "azure-compute-docs/articles/service-fabric/service-fabric-tutorial-java-jenkins.md": 0,
-   "azure-docs/articles/cyclecloud/how-to/bursting/setup-instructions-for-cloud-bursting.md": 0,
-   "azure-dev-docs/articles/jenkins/deploy-from-github-to-aks.md": 2,
-   "azure-docs/articles/logic-apps/set-up-handoff-agent-workflow.md": 0,
-   "finops-toolkit/src/templates/agent-plugin/commands/ftk/ytd-report.md": 0,
-   "azure-dev-docs/articles/jenkins/azure-storage-blobs-as-build-artifact-repository.md": 0,
-   "azure-dev-docs/articles/jenkins/pipeline-with-github-and-docker.md": 0,
-   "azure-compute-docs/articles/virtual-machines/instance-metadata-service.md": 0,
-   "azure-dev-docs/articles/jenkins/deploy-to-azure-functions.md": 0,
-   "azure-dev-docs/articles/java/sdk/authentication/system-assigned-managed-identity.md": 0,
-   "azure-monitor-docs/articles/chaos-studio/chaos-studio-tutorial-agent-based-cli.md": 0,
-   "azure-dev-docs/articles/jenkins/deploy-to-service-fabric-cluster.md": 0,
-   "azure-aks-docs/articles/aks/user-assigned-managed-identity.md": 0,
-   "azure-dev-docs/articles/jenkins/deploy-to-azure-spring-apps-using-azure-cli.md": 0,
-   "azure-dev-docs/articles/jenkins/deploy-to-azure-app-service-using-azure-cli.md": 0,
-   "azure-dev-docs/articles/jenkins/azure-container-instances-as-jenkins-build-agent.md": 0,
-   "azure-dev-docs/articles/java/sdk/authentication/user-assigned-managed-identity.md": 0,
-   "azure-compute-docs/articles/virtual-machines/extensions/diagnostics-linux.md": 0,
-   "azure-dev-docs/articles/jenkins/overview.md": 1
   }
  },
  "n0420": {
@@ -13285,10 +13273,11 @@
  "n0434": {
   "also_ok": [
    "azure-docs/articles/app-service/environment/overview.md",
-   "azure-docs/articles/azure-government/documentation-government-impact-level-5.md"
+   "azure-docs/articles/azure-government/documentation-government-impact-level-5.md",
+   "azure-docs/articles/azure-government/documentation-government-overview-dod.md"
   ],
   "grades": {
-   "azure-docs/articles/azure-government/documentation-government-overview-dod.md": 1,
+   "azure-docs/articles/azure-government/documentation-government-overview-dod.md": 2,
    "azure-docs/articles/azure-government/documentation-government-ase-disa-cap.md": 1,
    "azure-docs/articles/app-service/environment/overview.md": 2,
    "azure-docs/articles/azure-government/documentation-government-impact-level-5.md": 2,
@@ -13305,7 +13294,10 @@
    "azure-docs/articles/azure-government/compare-azure-government-global-azure.md": 1,
    "azure-docs/articles/deployment-environments/concept-reliability-deployment-environments.md": 1,
    "azure-compute-docs/articles/virtual-machines/regions.md": 1
-  }
+  },
+  "human_ok": [
+   "azure-docs/articles/azure-government/documentation-government-overview-dod.md"
+  ]
  },
  "n0435": {
   "also_ok": [],
@@ -13420,6 +13412,7 @@
  },
  "n0439": {
   "also_ok": [
+   "azure-docs/articles/role-based-access-control/conditions-role-assignments-portal.md",
    "azure-docs/articles/role-based-access-control/delegate-role-assignments-portal.md"
   ],
   "grades": {
@@ -13441,8 +13434,12 @@
    "azure-docs/articles/storage/queues/queues-auth-abac.md": 0,
    "azure-aks-docs/articles/aks/concepts-cluster-authorization.md": 1,
    "azure-aks-docs/articles/aks/entra-id-authorization.md": 0,
-   "azure-docs/articles/role-based-access-control/rbac-and-directory-admin-roles.md": 1
-  }
+   "azure-docs/articles/role-based-access-control/rbac-and-directory-admin-roles.md": 1,
+   "azure-docs/articles/role-based-access-control/conditions-role-assignments-portal.md": 2
+  },
+  "human_ok": [
+   "azure-docs/articles/role-based-access-control/conditions-role-assignments-portal.md"
+  ]
  },
  "n0440": {
   "also_ok": [
@@ -13591,13 +13588,14 @@
  },
  "n0445": {
   "also_ok": [
-   "azure-docs/articles/networking/design-guide/web-application-firewall.md"
+   "azure-docs/articles/networking/design-guide/web-application-firewall.md",
+   "azure-docs/articles/web-application-firewall/afds/waf-front-door-exclusion.md"
   ],
   "grades": {
    "azure-docs/articles/web-application-firewall/afds/waf-front-door-exclusion-configure.md": 1,
    "azure-docs/articles/networking/design-guide/web-application-firewall.md": 2,
    "azure-docs/articles/web-application-firewall/afds/waf-front-door-tuning.md": 1,
-   "azure-docs/articles/web-application-firewall/afds/waf-front-door-exclusion.md": 1,
+   "azure-docs/articles/web-application-firewall/afds/waf-front-door-exclusion.md": 2,
    "azure-docs/articles/frontdoor/high-availability.md": 1,
    "azure-docs/articles/web-application-firewall/afds/front-door-exceptions.md": 1,
    "azure-docs/articles/web-application-firewall/afds/afds-overview.md": 1,
@@ -13613,7 +13611,10 @@
    "azure-docs/articles/networking/design-guide/internet-ingress.md": 1,
    "azure-docs/articles/web-application-firewall/ag/application-gateway-waf-configuration.md": 1,
    "azure-docs/articles/networking/cross-service-scenarios/design-secure-hub-spoke-network.md": 1
-  }
+  },
+  "human_ok": [
+   "azure-docs/articles/web-application-firewall/afds/waf-front-door-exclusion.md"
+  ]
  },
  "n0446": {
   "also_ok": [
@@ -14103,10 +14104,7 @@
  },
  "n0462": {
   "also_ok": [
-   "azure-cli/README.md",
-   "azure-docs/articles/application-gateway/application-gateway-support-help.md",
-   "azure-docs/articles/firewall/support-help.md",
-   "azure-docs/articles/frontdoor/support-help.md"
+   "azure-cli/README.md"
   ],
   "grades": {
    "azure-docs/articles/data-factory/connector-deprecation-frequently-asked-questions.md": 0,
@@ -14118,12 +14116,12 @@
    "azure-docs/articles/static-web-apps/diagnostics-overview.md": 0,
    "azure-dev-docs/articles/azure-developer-cli/troubleshoot.md": 0,
    "azure-docs/articles/backup/backup-azure-scdpm-troubleshooting.md": 0,
-   "azure-docs/articles/frontdoor/support-help.md": 2,
+   "azure-docs/articles/frontdoor/support-help.md": 1,
    "azure-cli/README.md": 2,
-   "azure-docs/articles/firewall/support-help.md": 2,
+   "azure-docs/articles/firewall/support-help.md": 1,
    "azure-monitor-docs/articles/chaos-studio/chaos-studio-manage-cli.md": 0,
    "azure-docs/articles/firewall/deploy-cli.md": 0,
-   "azure-docs/articles/application-gateway/application-gateway-support-help.md": 2,
+   "azure-docs/articles/application-gateway/application-gateway-support-help.md": 1,
    "azure-docs/articles/communication-services/resources/troubleshooting/voice-video-calling/general-troubleshooting-strategies/report-issue.md": 0,
    "azure-monitor-docs/articles/azure-monitor/aiops/issues-overview.md": 0,
    "azure-monitor-docs/articles/chaos-studio/chaos-studio-limitations.md": 1,
