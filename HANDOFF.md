@@ -29,7 +29,7 @@ markup/code fences partly inferred. Skipped on purpose: `horz-monitor-ref-metric
 | Eval | `eval/` (58 questions, README with results/caveats, scripts `run_eval.py`, `rerank_eval.py`, `expand_eval.py`) |
 
 Registered 2026-11-01 with `claude mcp add --scope user docsearch -- /mnt/D500G/space/Microsoft/LLM/docsearch/.venv/bin/docsearch serve`
-Install nightly: see header of `deploy/docsearch-update.service`.
+Nightly timer: installed 2026-11-01 from `deploy/` (see header of `deploy/docsearch-update.service`).
 
 ## Decisions taken
 - Embeddings: nomic-embed-text-v1.5 Q4 via llama-server on Vulkan0 (RX 6600). Restart the server every ~15k chunks (it slows ~2x with uptime).
@@ -63,7 +63,7 @@ Re-eval on the bigger index (server config): strict R@5 .904 -> .885, MRR .767 -
 3. Stronger embedding model: slice test done (`eval/embed_slice.py`; 7,058-chunk pool = nomic/BM25 top-40 per question + gold pages + 2,500 random; vector-only ranking, page level). nomic strict R@5 .808 MRR .703 / lenient .885 .762 | **bge-m3 Q8** strict .865 .727 / lenient .885 .784, 20 chunks/s (full re-embed ~2.5 h, 1024-d, +33% index size) | Qwen3-Embedding-0.6B Q8 strict .846 .623 / lenient .865 .668, 6 chunks/s (~8 h; weaker R@1, possibly last-token/EOS handling) - rejected. bge-m3 gain is ~3 questions at R@5 strict and flat lenient: within noise, and likely smaller after rerank + expansion. Not adopted yet; a full-pipeline test would need a full re-embed.
 4. Overlap lexical and vector stages in threads (~200 ms saving), if latency matters.
 5. ~~Clone missing sample/include repos~~ done 2026-10-31: 106 dependent repos shallow-cloned as siblings of the corpus (from `dependent_repositories` in azure-docs/azure-dev-docs publish configs); only `reusable-content`, `azure-dev-docs-pr`, `azure-policy-autogen-docs` are private. Rebuild reused 178,962 vectors, embedded 2,470; snippet-unresolved pages 517 -> 58, include-unresolved still 1,032 (reusable-content). Index now 181,432 chunks (`index-20261031-125929721.db`).
-6. ~~Register the MCP server~~ done 2026-11-01 (user scope; takes effect in new Claude Code sessions). Still open: install the nightly timer (run `docsearch update --dry-run` first).
+6. ~~Register the MCP server~~ done 2026-11-01 (user scope; takes effect in new Claude Code sessions). Nightly timer installed 2026-11-01 (user units in ~/.config/systemd/user, 03:30 +-10 min, `Persistent=true`; log `data/nightly.log`; `systemctl --user list-timers docsearch-update.timer`). Needs user lingering (`loginctl enable-linger vivo`) to fire when nobody is logged in.
 
 ## Known limits
 Eval set is small (4 multi-page, 6 variant questions) and corpus-bound; half of Learn MCP's results are outside this checkout, so its MRR is understated.
@@ -95,7 +95,7 @@ Old: RX 6600 8 GB (Vulkan), ~224 GB/s. New: **RX 7900 XTX 24 GB (gfx1100)**, ~96
 - Models: nomic GGUF came from LM Studio's bundled dir (`BUNDLED_NOMIC` in embed.py): copy the GGUF or change the path. HF cache models needed: bge-m3 Q8 (ggml-org), bge-reranker-v2-m3 Q8 (gpustack), the Gemma GGUF (see `expand.py` GEMMA).
 - `llama-server` must be on PATH with GPU support. `uv run pytest -q` (74 tests) after porting.
 - If the index schema/vectors are kept (nomic 768-d), `data/current.db` can be copied as is (1.5 GB). If bge-m3 wins, the whole index must be re-embedded and `store.DIMS`, `embed.py` (MODEL_ID, pooling cls, no DOC/QUERY prefix), server `_Embeddings` and canary.py all need the new model; content_hash includes MODEL_ID so the nightly update re-embeds everything.
-- Still true: nightly timer not installed. (The MCP server is now registered, see above.)
+- MCP server registered and nightly timer installed (see above).
 - Claude memory: copy `handoff-memory/*` into `~/.claude/projects/<mangled-project-path>/memory/` on the new machine (see handoff-memory/README.md).
 
 ## Running long jobs (2026-10-31)
