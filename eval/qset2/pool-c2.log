@@ -1,0 +1,19 @@
+16:20:22 expanded 0/787
+16:20:22 expanded 100/787
+16:20:22 expanded 200/787
+16:20:22 expanded 300/787
+16:20:22 expanded 400/787
+16:20:22 expanded 500/787
+16:20:22 expanded 600/787
+16:20:22 expanded 700/787
+16:20:31 embedded queries
+16:20:35 pooled 0/787
+16:23:54 pooled 100/787
+16:27:17 pooled 200/787
+16:30:34 pooled 300/787
+16:33:56 pooled 400/787
+16:37:14 pooled 500/787
+16:40:34 pooled 600/787
+16:44:00 pooled 700/787
+16:46:41 pool sizes: mean 17.9
+exit 0
