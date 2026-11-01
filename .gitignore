@@ -3,3 +3,5 @@ data/
 __pycache__/
 eval/results/*.npy
 .pytest_cache/
+eval/qset2/*.npy
+eval/qset2/rerank_cache.jsonl

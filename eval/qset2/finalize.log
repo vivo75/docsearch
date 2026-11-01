@@ -1,0 +1,4 @@
+09:08:51 finalize: {'source_not_2:conceptual': 13, 'source_not_2:howto': 13, 'source_not_2:troubleshooting': 3, 'pair_source_irrelevant': 24, 'unans_answerable': 23, 'source_not_2:variant': 5, 'short:AZ:conceptual': 5, 'short:multi_page': 20, 'short:repo:azure-rest-api-specs': 3, 'short:repo:sre-agent': 1, 'short:variant': 4}
+09:08:51 final: Counter({'howto': 258, 'conceptual': 102, 'troubleshooting': 61, 'identifier': 60, 'unanswerable': 60, 'variant': 56, 'multi_page': 30}) Counter({'dev': 314, 'test': 313}) 627
+09:08:51 wrote /mnt/D500G/space/Microsoft/LLM/docsearch/eval/qset2/review.md
+exit 0

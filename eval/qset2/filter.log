@@ -1,0 +1,3 @@
+00:33:30 filter: {'skipped_by_llm': 44, 'variant_missing': 2, 'lexical_leak': 59, 'ungrounded': 45, 'token_missing': 3, 'short:AZ:conceptual': 0, 'short:AZ:howto': 0, 'short:AZ:troubleshooting': 0, 'short:identifier': 0, 'short:multi_page': 0, 'short:repo:architecture-center': 0, 'short:repo:azure-cli': 0, 'short:repo:azure-dev-docs': 0, 'short:repo:azure-docs-powershell': 0, 'short:repo:azure-pipelines-tasks': 0, 'short:repo:azure-rest-api-specs': 2, 'short:repo:finops-toolkit': 0, 'short:repo:sre-agent': 0, 'short:unanswerable': 0, 'short:variant': 0}
+00:33:30 candidates: Counter({'howto': 284, 'conceptual': 115, 'unanswerable': 84, 'troubleshooting': 66, 'identifier': 65, 'variant': 61, 'multi_page': 54}) 729
+exit 0
