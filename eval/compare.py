@@ -65,6 +65,12 @@ def load(set_name: str, split: str, judgments: str | None = None):
     return keep(strict), keep(lenient)
 
 
+def parse(n: str):
+    """`index/config[@reranker]` -> (index, config, reranker); reranker defaults to the server's bge-v2-m3-q8."""
+    idx, conf = n.split("/"); conf, _, rr = conf.partition("@")
+    return idx, conf, rr or "bge-v2-m3-q8"
+
+
 def auc(rows):
     an = [r["top_score"] for r in rows if r["category"] != "unanswerable"]; un = [r["top_score"] for r in rows if r["category"] == "unanswerable"]
     if not an or not un: return None
@@ -92,10 +98,10 @@ def main():
 
     texts = [q["question"] for q in strict]
     ex = QueryExpander("", (H / "eval" / a.set if a.set != "v1" else Q2) / "expansions.json")
-    if any(CONFIGS[n.split("/")[1]][1] for n in names):
+    if any(CONFIGS[parse(n)[1]][1] for n in names):
         missing = [t for t in texts if t not in ex.cache]
         if missing: raise SystemExit(f"{len(missing)} questions have no cached expansion (run qset2.py pool first)")
-    kinds = {INDEXES[n.split("/")[0]][1] for n in names}
+    kinds = {INDEXES[parse(n)[0]][1] for n in names}
     memo = {}
     if "nomic" in kinds:
         e = _Embeddings(); memo["nomic"] = {t: e(t) for t in {s for q in texts for s in (q, q + " " + ex.cache.get(q, ""))}}
@@ -104,10 +110,10 @@ def main():
             e = Embedder(bs.url, workers=1); memo["bge"] = {t: e.embed([t], "")[0] for t in {s for q in texts for s in (q, q + " " + ex.cache.get(q, ""))}}
     cfg = load_config(H / "repos.toml")
 
-    def evaluate(rr):
+    def evaluate(todo, rr):
         out = {}
-        for n in names:
-            idx, conf = n.split("/"); db, kind = INDEXES[idx]; config, needs_rr = CONFIGS[conf]
+        for n in todo:
+            idx, conf, _ = parse(n); db, kind = INDEXES[idx]; config, needs_rr = CONFIGS[conf]
             s = E.DocsearchSystem(db, memo[kind].__getitem__, cfg, config, n, measure=True,
                                   reranker=(lambda q, d: rr.score(q, d)) if needs_rr else None, expander=lambda q: ex.cache[q])
             rows_s, rows_l, lat = [], [], []
@@ -118,11 +124,12 @@ def main():
             print(f"  ran {n}", flush=True)
         return out
 
-    if any(CONFIGS[n.split("/")[1]][1] for n in names):
-        with RerankServer("bge-v2-m3-q8") as rs:
-            res = evaluate(Reranker(rs.url, "bge-v2-m3-q8", cache=(H / "eval" / a.set if a.set != "v1" else Q2) / "rerank_cache.jsonl"))
-    else:
-        res = evaluate(None)
+    res = evaluate([n for n in names if not CONFIGS[parse(n)[1]][1]], None)
+    for rname in dict.fromkeys(parse(n)[2] for n in names if CONFIGS[parse(n)[1]][1]):   # one llama-server per reranker
+        with RerankServer(rname) as rs:   # caches are keyed by model name, so one file serves every reranker
+            res.update(evaluate([n for n in names if CONFIGS[parse(n)[1]][1] and parse(n)[2] == rname],
+                                Reranker(rs.url, rname, cache=(H / "eval" / a.set if a.set != "v1" else Q2) / "rerank_cache.jsonl")))
+    res = {n: res[n] for n in names}
 
     rng = np.random.default_rng(20261101); report = {"set": a.set, "split": a.split, "baseline": base, "systems": {}}
     for mode in ("strict", "lenient"):

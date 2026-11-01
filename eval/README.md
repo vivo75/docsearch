@@ -134,3 +134,11 @@ identical across pages, extracted by Haiku 5.5 agents; link URLs and exact marku
   R@5 .417 -> .667 [Δ +.250, CI +.139..+.361], MRR .317 -> .497 [Δ +.180, +.098..+.265], nDCG@10 .216 -> .386. Per-topic split not computed yet.
 - Caveats: the questions target exactly this content (best case); n = 48 (6 per topic); model-written questions; `pre` is the index before the heal
   (`index-20261101-160916351.db`, registered in `compare.py` as `pre`; keep that file while this comparison matters).
+
+## Phase B1: rerankers on qset2 test (2026-11-01)
+`compare.py --systems nomic/server,nomic/server@<reranker>` (server = rerank top 10 rrf + expand_vec; one llama-server per reranker; scores cached per model name).
+Strict R@5 / MRR / unans. AUC / p50: **bge-v2-m3 Q8 (current)** .816 / .710 / .912 / 1.3 s | Qwen3-Reranker-8B Q8 .816 / .718 / .939 / 3.4 s | Qwen3-Reranker-4B Q4 .820 / .708 / .932 / 3.1 s |
+Prism-Qwen3.5-Reranker-4B Q8 (self-converted) .823 / .719 / .964 / 5.3 s. All strict deltas have CIs including 0. Lenient: Qwen3 no significant change;
+Prism MRR +.017 [+.002,+.034], nDCG10 +.011 [+.003,+.020] (R@5 unchanged), strict not significant. **Not adopted** (bar: both strict and lenient, no AUC regression; latency 4x).
+Prism worth revisiting for abstention (AUC .912 -> .964, few unanswerable questions in test). Prism GGUF: no public file exists; converted with llama.cpp `convert_hf_to_gguf.py`
+(pre-tokenizer hash unknown -> forced `qwen35`, tokenization checked identical), scored by `Reranker._prism` (p(yes)/(p(yes)+p(no)) via /completion); model in `data/models/prism4b/` (git-ignored).
