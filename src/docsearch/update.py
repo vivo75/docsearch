@@ -48,9 +48,11 @@ class Plan:
 def pull(cfg: Config) -> dict[str, str]:
     """`git pull --ff-only` every repo; a failure on one repo is reported, not fatal."""
     out = {}
-    for repo in cfg.repos:
+    for repo in cfg.checkouts():               # entries sharing a checkout are pulled once
         r = subprocess.run(["git", "-C", str(repo.path), "pull", "--ff-only", "--quiet"], capture_output=True, text=True)
-        out[repo.name] = "ok" if r.returncode == 0 else (r.stderr.strip().splitlines() or ["failed"])[-1][:200]
+        status = "ok" if r.returncode == 0 else (r.stderr.strip().splitlines() or ["failed"])[-1][:200]
+        for e in cfg.sharing(repo):
+            out[e.name] = status
     return out
 
 
@@ -77,7 +79,8 @@ def make_plan(cfg: Config, db: sqlite3.Connection) -> Plan:
         rp.pages = {p for p in (cs.added | cs.modified | set(cs.renamed.values())) if is_page(p, repo.fmt) and repo.in_scope(p)}
         rp.removed = {p for p in (cs.deleted | set(cs.renamed)) if is_page(p, repo.fmt) and repo.in_scope(p)}
     # pages whose includes/snippets changed (the dependency may live in another repo)
-    touched = {f"{n}/{p}" for n, rp in repos.items() if not rp.full for p in rp.changed}
+    root = cfg.root.resolve()          # deps are stored relative to the corpus root: <checkout dir>/<file>
+    touched = {f"{cfg.repo(n).rel_dir(root)}/{p}" for n, rp in repos.items() if not rp.full for p in rp.changed}
     deleted_or_changed = list(touched)
     for i in range(0, len(deleted_or_changed), 500):
         part = deleted_or_changed[i : i + 500]
@@ -159,10 +162,14 @@ def update(cfg_path: str, out_dir: Path, *, do_pull: bool = False, dry_run: bool
                 added += 1
                 chunks += len(r.chunks)
             db.commit()
+        # Redirects: rebuilt from every entry when any repo moved. A per-repo `DELETE ... LIKE url_base%` wiped other
+        # entries' rows: url_bases are shared (azure-docs/aks/monitor/compute, the two Azure CLI entries) or prefixes of
+        # each other (.../azure vs .../azure/developer), and rows carry no repo. Loading all of them takes seconds.
+        if any(rp.old != rp.new for rp in plan.repos.values()):
+            db.execute("DELETE FROM redirects")
+            for repo in cfg.repos:
+                db.executemany("INSERT OR REPLACE INTO redirects VALUES (?,?)", Redirects.load(repo).map.items())
         for name, rp in plan.repos.items():
-            if rp.old != rp.new:
-                db.execute("DELETE FROM redirects WHERE old_url LIKE ?", (f"{cfg.repo(name).url_base or '\0'}%",))
-                db.executemany("INSERT OR REPLACE INTO redirects VALUES (?,?)", Redirects.load(cfg.repo(name)).map.items())
             store.set_meta(db, **{f"head:{name}": rp.new})
         stats.update(pages_written=added, chunks_written=chunks, docs_deleted=removed)
         n_toc = build_toc(db, cfg)

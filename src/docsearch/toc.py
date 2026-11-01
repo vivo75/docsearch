@@ -33,10 +33,13 @@ def build_toc(db: sqlite3.Connection, cfg: Config) -> int:
     db.executescript("DROP TABLE IF EXISTS toc;" + store.TOC_SCHEMA)
     n = 0
     for repo in cfg.repos:
-        known = {p: (d, u) for d, p, u in db.execute("SELECT doc_id, path, url FROM docs WHERE repo=?", (repo.name,))}
+        names = [r.name for r in cfg.sharing(repo)]          # a TOC may link to pages indexed under a sibling entry
+        known = {p: (d, u) for d, p, u in db.execute(
+            f"SELECT doc_id, path, url FROM docs WHERE repo IN ({','.join('?' * len(names))})", names)}
         if not known:
             continue
-        files = [f for f in git(repo, "ls-files", "-z", "--", "*toc.yml", "*TOC.yml").split("\0") if f]
+        files = [f for f in git(repo, "ls-files", "-z", "--", "*toc.yml", "*TOC.yml").split("\0")
+                 if f and repo.in_scope(f)]                   # each entry owns only the TOC files inside its scope
         for f in files:
             try:
                 data = yaml.safe_load((repo.path / f).read_text(encoding="utf-8-sig", errors="replace"))

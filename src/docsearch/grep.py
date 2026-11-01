@@ -22,7 +22,7 @@ def grep_docs(cfg: Config, pattern: str, glob: str | None = None, limit: int = 2
         return {"error": "glob must be relative to the corpus root and may not contain '..'"}
     limit, context = max(1, min(limit, 50)), max(0, min(context, 5))
     root = cfg.root.resolve()
-    roots = [str(r.path.resolve().relative_to(root)) for r in cfg.repos if r.path.exists()]
+    roots = [r.rel_dir(root) for r in cfg.checkouts() if r.path.exists()]     # a shared checkout is searched once
     cmd = ["rg", "--json", "--max-count", "3", "--max-columns", "300", "--max-columns-preview",
            "--regex-size-limit", "10M", "--no-follow", "--context", str(context), "-i"]
     cmd += [] if regex else ["-F"]
@@ -50,7 +50,8 @@ def grep_docs(cfg: Config, pattern: str, glob: str | None = None, limit: int = 2
             lines = pending.pop(path)
             if any(x["match"] for x in lines):
                 files.add(path)
-                matches.append({"source": path, "lines": lines})
+                # `source` = the id read_doc/outline_doc and search_docs use (<entry name>/<repo path>), not the checkout dir
+                matches.append({"source": cfg.source_for(Path(path).as_posix()) or path, "lines": lines})
         if len(matches) >= limit:
             break
     return {"matches": matches[:limit], "files_matched": len(files), "truncated": len(matches) >= limit,
