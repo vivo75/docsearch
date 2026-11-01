@@ -1,0 +1,2 @@
+19:07:50 finalize-new: {'kept:azure-cli-docs': 19, 'old_corpus_ok:azure-cli-docs': 12, 'kept:azure-cli-reference': 36, 'old_corpus_ok:azure-cli-reference': 25, 'source_not_2': 3, 'kept:azure-support-articles': 40, 'old_corpus_ok:azure-support-articles': 24} 95 questions; the original corpus had a grade-2 page for 61/95
+exit 0

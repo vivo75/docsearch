@@ -1,0 +1,3 @@
+18:05:29 filter: {'lexical_leak': 11, 'skipped_by_llm': 1, 'ungrounded': 2}
+18:05:29 candidates: Counter({'howto': 59, 'troubleshooting': 38, 'conceptual': 1}) 98
+exit 0

@@ -105,3 +105,13 @@ set measures "no harm" here, not the coverage gain that motivated the change (12
 chunks, 17 repos). Previous live index kept: `index-20261031-144038161.db` (`compare.py` name `c1`); roll back with
 `ln -sfn index-20261031-144038161.db data/current.db`. Default lenient judgments for compare.py are now `judgments-c2.json`.
 Follow-up: a question set generated from the NEW pages, to measure the coverage gain this test set cannot see.
+
+## qset3: coverage gain of the corpus additions (2026-11-01)
+95 questions written from 112 sampled pages of the three added sources (36 CLI reference, 19 CLI docs, 40 support articles; all
+judged-2 on their source page), `compare.py --set qset3`, c1 = corpus before the additions, nomic = live corpus (server config).
+**Strict is meaningless for c1 (0.000 by construction: the gold page is not in that index). Read the lenient rows.**
+Lenient: R@5 0.505 -> 0.874 [ΔR@5 +0.368, 95% CI +0.274..+0.463], MRR 0.430 -> 0.776 [Δ +0.346, +0.258..+0.436],
+nDCG@10 0.276 -> 0.621. For 61 of 95 questions the old corpus also held a grade-2 page (25/36 CLI reference, 12/19 CLI docs,
+24/40 support): the additions were needed for 34 (36%). Latency p50 1.11 -> 1.24 s.
+Caveat: the questions are drawn from the new pages, so this is the best case for the addition; qset2 test (drawn from the old
+corpus) shows no harm. Together they support the adoption made on 2026-11-01.
