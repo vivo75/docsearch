@@ -7,3 +7,4 @@ eval/qset2/*.npy
 eval/qset2/rerank_cache.jsonl
 eval/qset3/*.npy
 eval/qset3/rerank_cache.jsonl
+eval/qinc/rerank_cache.jsonl

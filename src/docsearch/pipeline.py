@@ -30,7 +30,7 @@ class Processor:
         self.cfg, self.repo = cfg, repo
         self.resolver = IncludeResolver(repo.path, cfg.root)
 
-    def process(self, rel: str) -> PageResult | None:
+    def _resolve(self, rel: str):
         path = self.repo.path / rel
         try:
             raw = path.read_text(encoding="utf-8", errors="replace")
@@ -41,7 +41,18 @@ class Processor:
             if raw is None:                 # malformed reference YAML: skip this page, never abort the build
                 return None
         page = parse_page(raw)
-        res = self.resolver.resolve(page.body, path)
+        return path, page, self.resolver.resolve(page.body, path)
+
+    def deps(self, rel: str) -> set[str] | None:
+        """Dependencies the page resolves to now (no normalising or chunking); None if it cannot be read."""
+        r = self._resolve(rel)
+        return None if r is None else r[2].deps
+
+    def process(self, rel: str) -> PageResult | None:
+        r = self._resolve(rel)
+        if r is None:
+            return None
+        path, page, res = r
         text, links = normalize(res.text, lambda target: self._target_url(path, target))
         info = DocInfo(self.repo.name, rel, page.title, doc_url(self.repo, rel))
         flags = list(page.flags)

@@ -1,7 +1,21 @@
-# docsearch — handoff (state as of 2026-10-31)
+# docsearch — handoff (state as of 2026-11-01)
 
 Implements `../option-2-local-hybrid-index.md`. Everything lives in this directory; `data/` (gitignored) holds the index.
-Run tests: `uv run pytest -q` (74 pass). No background jobs are running; no llama-server is left running.
+Run tests: `uv run pytest -q` (83 pass). No background jobs are running; no llama-server is left running.
+
+## Reconstructed includes (2026-11-01) — read before touching `reusable-content`
+`/mnt/D500G/space/Microsoft/reusable-content/` and `.../azure-dev-docs-pr/` are **NOT the real repos**: stand-ins (9 files) rebuilt from the
+rendered Learn pages of the most-used unresolved includes (free-trial note, updated-for-az, both azure-cli-prepare-your-environment, AKS preview callout,
+ARM and Bicep intros, cloud-shell-try-it, terraform-init). Each file has `reconstructed: true` + source URLs in frontmatter (stripped at index time, so the
+index text is unmarked); each directory has `RECONSTRUCTED.md` and `manifest.json`. They are not git repos and not in `repos.toml`. Known weak spots: link URLs lost,
+markup/code fences partly inferred. Skipped on purpose: `horz-monitor-ref-metrics-tableheader.md` (header boundary unclear). To undo: delete both directories and run `docsearch build`
+(`docsearch update` would not notice the removal: it only heals newly resolvable includes, not vanished ones). If the real repos are ever cloned, replace the directories and `docsearch build`.
+- `docsearch update` now **heals** pages: `_heal_unresolved` (update.py) re-resolves every `*_unresolved` page and reprocesses those that gained a dependency not in `deps`
+  (no git change needed; ~1,700 page reads). First run: 977 pages, 12,340 chunks, 1,489 embedded; index `index-20261101-195217309.db` (live); previous index kept (`pre` in compare.py).
+- Results: no change on qset2 (test/dev), large gain on the new include-targeted set qinc (R@5 .167 -> .604); details in eval/README.md ("qinc").
+- Method (reusable for more includes, ~399 distinct unresolved includes, the 10 used cover ~1,280 of 1,752 occurrences): list unresolved includes with their pages (IncludeResolver on flagged docs),
+  fetch 3 rendered pages per include at 1 request / 0.8 s, give source+rendered text to a Haiku agent to extract the text at the marker, check the 3 extractions agree. Avoid tables/tab-heavy includes.
+- Next: more includes (azure-dev-docs-pr terraform-* family, horz-monitor-ref-* once the table boundary is understood), then re-run `compare.py` on qset2 + qinc.
 
 ## What exists and works
 | area | where |
@@ -42,7 +56,7 @@ Re-eval on the bigger index (server config): strict R@5 .904 -> .885, MRR .767 -
 ## Next steps, in priority order
 1. ~~Re-run canaries~~ done: all 15 canary ids stay in the top 5 under both the default and the server config (rerank + expansion). `canary.py` keeps testing the default config on purpose (index integrity, no extra GPU servers); no change needed.
 2. Real failures (investigated 2026-10-31; only q008, q013, q022 miss the top 5 under the server config):
-   - q022 blob diagnostic setting/PowerShell: **corpus-limited**. The gold page `monitor-blob-storage.md` gets its diagnostic-setting text from an unresolved private include (`reusable-content`), so it is not in the index. Not fixable by retrieval; resolves only if that repo becomes available.
+   - q022 blob diagnostic setting/PowerShell: **corpus-limited** (still true: that include is not among the 9 reconstructed). The gold page `monitor-blob-storage.md` gets its diagnostic-setting text from an unresolved private include (`reusable-content`), so it is not in the index. Not fixable by retrieval; resolves only if that repo becomes available.
    - q013 read-only RBAC: gold page never says "read-only" (answer is the Reader role). v1 expansion misses "Reader"; vector rank of gold 324.
    - q008 VM backup intro: gold is 5th in the expanded vector list but drops out in fusion; many backup quickstarts outrank the overview page. Reranking deeper does NOT help (top 10/15/20/30: R@5 flat .904, MRR .767-.779, unanswerable AUC falls .50 -> .40), so keep rerank_top=10.
    - Tried a second expansion prompt (article title + official names; `eval/expand_prompt_v2.py`, cache `eval/results/expansions_v2.json`): strict MRR .767 -> .781 but R@5 .904 -> .885; lenient equal. A wash within noise, NOT adopted. It does produce "Reader" for q013.

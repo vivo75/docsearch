@@ -32,7 +32,9 @@ H = Path(__file__).resolve().parents[1]; Q2 = H / "eval" / "qset2"; R = H / "eva
 D = SearchConfig()
 # nomic = the live index (since 2026-11-01 the extended corpus, same file as c2); c1 = the original 14-repo corpus
 INDEXES = {"nomic": (H / "data" / "current.db", "nomic"), "c1": (H / "data" / "index-20261031-144038161.db", "nomic"), "rebuild": (H / "data" / "rebuild-nomic" / "current.db", "nomic"),
-           "bge": (H / "data" / "exp-bge-m3.db", "bge"), "c2": (H / "data" / "corpus2" / "current.db", "nomic")}
+           "bge": (H / "data" / "exp-bge-m3.db", "bge"), "c2": (H / "data" / "corpus2" / "current.db", "nomic"),
+           # pre = live index before the reconstructed-include heal (2026-11-01 16:09); nomic = after it
+           "pre": (H / "data" / "index-20261101-160916351.db", "nomic")}
 CONFIGS = {"bm25": (replace(D, vector=0), False), "vector": (replace(D, bm25=0, phrase=0, ident=0), False), "hybrid": (D, False),
            "rerank": (SERVER_CONFIG, True), "expand": (replace(D, expand_vec=1.0), True),
            "server": (replace(SERVER_CONFIG, expand_vec=1.0), True)}       # server = what `docsearch serve` runs
@@ -41,7 +43,7 @@ METRICS = ("r1", "r5", "r10", "mrr", "ndcg10")
 
 
 def load(set_name: str, split: str, judgments: str | None = None):
-    if set_name in ("qset2", "qset3"):
+    if set_name in ("qset2", "qset3", "qinc"):
         Qd = H / "eval" / set_name
         jf = Qd / (judgments or ("judgments-c2.json" if set_name == "qset2" else "judgments.json"))
         for f in (Qd / "questions.jsonl", jf):
@@ -77,7 +79,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--systems", default="nomic/server,bge/server")
     ap.add_argument("--baseline", help="default: the first system")
-    ap.add_argument("--set", default="qset2", choices=["qset2", "qset3", "v1"])
+    ap.add_argument("--set", default="qset2", choices=["qset2", "qset3", "qinc", "v1"])
     ap.add_argument("--split", default="test", choices=["test", "dev", "all"])
     ap.add_argument("--boot", type=int, default=10000)
     ap.add_argument("--judgments", help="qset2 lenient judgment file (default judgments-c2.json, the live extended corpus; judgments.json = original corpus only)")

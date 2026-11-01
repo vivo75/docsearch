@@ -115,3 +115,19 @@ nDCG@10 0.276 -> 0.621. For 61 of 95 questions the old corpus also held a grade-
 24/40 support): the additions were needed for 34 (36%). Latency p50 1.11 -> 1.24 s.
 Caveat: the questions are drawn from the new pages, so this is the best case for the addition; qset2 test (drawn from the old
 corpus) shows no harm. Together they support the adoption made on 2026-11-01.
+
+## qinc: reconstructed includes (2026-11-01)
+The private `reusable-content` / `azure-dev-docs-pr` repos are not cloned, so 1,408 pages had unresolved includes. For the 9 most-used
+include files (8 in `reusable-content`, 1 terraform include) the text was recovered from the rendered Learn pages (3 pages per include,
+identical across pages, extracted by Haiku 5.5 agents; link URLs and exact markup are lost) and written as stand-in checkouts, see HANDOFF.md.
+`docsearch update` now heals pages whose includes resolve later (977 pages reprocessed, 1,489 chunks embedded; canaries ok).
+- **qset2 (no harm check)**, SERVER config, pre vs post heal, paired bootstrap: test R@5 .816 -> .816, MRR .710 -> .710 (strict) and
+  .912 / .855 (lenient, both unchanged); dev R@5 .837 -> .837, MRR .743 -> .744. All CIs include 0; unanswerable AUC -0.001; p50 unchanged.
+- **qinc (gain check)**: `qinc/questions.jsonl`, 48 questions (8 topics x 6; Haiku 5.5, no 5-word copy from the passage, checked by script),
+  built by `qinc_build.py`, expansions by `qinc_expand.py`. Gold = every page using the include (57-260 pages per topic), split 3 dev / 3 test per topic.
+  `compare.py --set qinc --split all --systems pre/server,nomic/server --baseline pre/server`: R@5 .167 -> .604 [Δ +.438, CI +.292..+.583],
+  MRR .135 -> .457 [Δ +.323, +.221..+.429], nDCG@10 .069 -> .319. Test half alone R@5 .208 -> .625, dev .125 -> .583.
+  By topic R@5 (pre -> post): Cloud Shell 0 -> .83, terraform init 0 -> .83, AKS preview callout .50 -> .83, Az PowerShell note .67 -> .83,
+  CLI prerequisites 0 -> .50, ARM intro .17 -> .50, Bicep intro 0 -> .50, **free-trial note 0 -> 0** (generic wording; many other pages answer it, 258 gold pages never reach the top 5).
+- Caveats: the questions target exactly this content (best case); n = 48 (6 per topic); model-written questions; `pre` is the index before the heal
+  (`index-20261101-160916351.db`, registered in `compare.py` as `pre`; keep that file while this comparison matters).

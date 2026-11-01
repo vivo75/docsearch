@@ -122,3 +122,25 @@ def test_unknown_old_head_falls_back_to_full_reprocess_reusing_vectors(env):
     assert st["status"] == "published" and st["reprocess"] == 4
     assert emb.texts == []                         # identical content -> every vector reused by hash
     assert docs(out) == {"articles/a.md", "articles/b.md", "articles/c.md", "articles/d.md"}
+
+
+def test_include_that_appears_later_without_a_git_change_is_picked_up(env):
+    """An unresolved include is not in `deps`; a file dropped in later (cloned/reconstructed, untracked) must still heal the page."""
+    repo, cfg, out = env
+    (repo / "articles/f.md").write_text(page("Foxtrot", "Foxtrot body. [!INCLUDE [n](../includes/late.md)]"))
+    commit(repo, "page with a missing include")
+    assert update(cfg, out, workers=1, embedder=FakeEmb(), max_unresolved=0.5)["status"] == "published"   # 1 of 5 pages > default 15%
+    db = store.connect(out / "current.db", readonly=True)
+    assert "include_unresolved" in db.execute("SELECT flags FROM docs WHERE path='articles/f.md'").fetchone()[0]
+    assert update(cfg, out, workers=1, embedder=FakeEmb())["status"] == "up-to-date"      # still missing: nothing to do
+
+    (repo / "includes/late.md").write_text("---\nreconstructed: true\n---\nLate arriving paragraph about zebras.")   # not committed
+    plan = make_plan(__import__("docsearch.config", fromlist=["load_config"]).load_config(cfg), db)
+    assert plan.repos["r"].pages == {"articles/f.md"} and not plan.empty
+    emb = FakeEmb()
+    assert update(cfg, out, workers=1, embedder=emb)["status"] == "published"
+    new = store.connect(out / "current.db", readonly=True)
+    assert "zebras" in new.execute("SELECT text FROM chunks c JOIN docs d USING(doc_id) WHERE d.path='articles/f.md'").fetchone()[0]
+    assert "reconstructed" not in " ".join(emb.texts)                                       # frontmatter stays out of the index
+    assert "include_unresolved" not in (new.execute("SELECT flags FROM docs WHERE path='articles/f.md'").fetchone()[0] or "")
+    assert update(cfg, out, workers=1, embedder=FakeEmb())["status"] == "up-to-date"

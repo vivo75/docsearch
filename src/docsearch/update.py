@@ -12,6 +12,7 @@ from pathlib import Path
 from . import store
 from .build import _insert_page, log, parse_pages, phase_embed, unresolved_fraction
 from .config import Config, Repo, load_config
+from .pipeline import Processor
 from .sync import blob_hashes, diff, head, is_page, last_commit_dates, list_pages
 from .toc import build_toc
 from .urls import Redirects
@@ -41,8 +42,7 @@ class Plan:
 
     @property
     def empty(self) -> bool:
-        return all(p.old == p.new for p in self.repos.values()) or not (self.n_reprocess or self.n_removed or any(
-            p.changed for p in self.repos.values()))
+        return not (self.n_reprocess or self.n_removed or any(p.changed for p in self.repos.values()))
 
 
 def pull(cfg: Config) -> dict[str, str]:
@@ -90,10 +90,38 @@ def make_plan(cfg: Config, db: sqlite3.Connection) -> Plan:
             rp = repos[repo_name]
             if not rp.full and path not in rp.removed:
                 rp.pages.add(path)
+    _heal_unresolved(cfg, db, repos)
     for name, rp in repos.items():                        # a page can't be both reprocessed and removed
         rp.pages -= rp.removed
         rp.pages = {p for p in rp.pages if (cfg.repo(name).path / p).exists()}
     return Plan(repos)
+
+
+def _heal_unresolved(cfg: Config, db: sqlite3.Connection, repos: dict[str, RepoPlan]) -> int:
+    """Reprocess pages flagged *_unresolved whose includes/snippets resolve now (a missing include file appeared).
+
+    An unresolved include is never recorded in `deps`, so a file that shows up later (a cloned dependent repo, a
+    reconstructed stand-in) triggers no git change. Re-resolving the flagged pages and comparing against the stored
+    deps finds exactly those that gained a dependency. Cost: one read + include expansion per flagged page.
+    """
+    procs: dict[str, Processor] = {}
+    n = 0
+    for doc_id, repo_name, path in db.execute(
+            "SELECT doc_id, repo, path FROM docs WHERE flags LIKE '%unresolved%'").fetchall():
+        rp = repos.get(repo_name)
+        if rp is None or rp.full or path in rp.pages or path in rp.removed:
+            continue
+        proc = procs.get(repo_name)
+        if proc is None:
+            proc = procs[repo_name] = Processor(cfg, cfg.repo(repo_name))
+        now = proc.deps(path)
+        if now is None:
+            continue
+        known = {d for (d,) in db.execute("SELECT dep_path FROM deps WHERE doc_id=?", (doc_id,))}
+        if now - known:
+            rp.pages.add(path)
+            n += 1
+    return n
 
 
 def _delete_docs(db: sqlite3.Connection, repo: str, paths: set[str]) -> int:
