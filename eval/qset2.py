@@ -402,6 +402,7 @@ def pool(a):
     from docsearch.search import SearchConfig
     from docsearch.server import SERVER_CONFIG, _Embeddings
     qs = all_questions(); cfg = load_config(H / "repos.toml"); D = SearchConfig()
+    db = Path(a.db) if a.db else DB; out_name = a.out or "pool.jsonl"
 
     class Bge(EmbedServer):
         def __init__(s): super().__init__(hf_file("ggml-org/bge-m3-Q8_0-GGUF", "bge-m3-q8_0.gguf"), "ROCm0", 8095, ctx=4096, parallel=2)
@@ -416,20 +417,23 @@ def pool(a):
             if i % 100 == 0: log(f"expanded {i}/{len(texts)}")
     nomic = _Embeddings(); memo_n = {}
     for t in {s for q in texts for s in (q, q + " " + ex.cache[q])}: memo_n[t] = nomic(t)
-    with Bge() as bs:
-        e = Embedder(bs.url, workers=1); memo_b = {t: e.embed([t], "")[0] for t in texts}
+    memo_b = {}
+    if not a.no_bge:
+        with Bge() as bs:
+            e = Embedder(bs.url, workers=1); memo_b = {t: e.embed([t], "")[0] for t in texts}
     np.save(OUT / "qvec_nomic.npy", np.array([np.frombuffer(memo_n[t], dtype=np.float32) for t in texts]))
     log("embedded queries")
     bge_db = H / "data" / "exp-bge-m3.db"
     with RerankServer("bge-v2-m3-q8") as rs:
         rr = Reranker(rs.url, "bge-v2-m3-q8", cache=OUT / "rerank_cache.jsonl")
         systems = {
-            "bm25": E.DocsearchSystem(DB, memo_n.__getitem__, cfg, replace(D, vector=0), "bm25", measure=False),
-            "nomic-vec": E.DocsearchSystem(DB, memo_n.__getitem__, cfg, replace(D, bm25=0, phrase=0, ident=0), "nomic-vec", measure=False),
+            "bm25": E.DocsearchSystem(db, memo_n.__getitem__, cfg, replace(D, vector=0), "bm25", measure=False),
+            "nomic-vec": E.DocsearchSystem(db, memo_n.__getitem__, cfg, replace(D, bm25=0, phrase=0, ident=0), "nomic-vec", measure=False),
             "bge-vec": E.DocsearchSystem(bge_db, memo_b.__getitem__, cfg, replace(D, bm25=0, phrase=0, ident=0), "bge-vec", measure=False),
-            "server": E.DocsearchSystem(DB, memo_n.__getitem__, cfg, replace(SERVER_CONFIG, expand_vec=1.0), "server", measure=False,
+            "server": E.DocsearchSystem(db, memo_n.__getitem__, cfg, replace(SERVER_CONFIG, expand_vec=1.0), "server", measure=False,
                                         reranker=lambda q, d: rr.score(q, d), expander=lambda q: ex.cache[q]),
         }
+        if a.no_bge: systems.pop("bge-vec")       # the bge-m3 index only covers the original corpus
         rows = []
         for i, q in enumerate(qs):
             pages = defaultdict(list)
@@ -437,7 +441,7 @@ def pool(a):
                 for rank, src in enumerate(s.run(q)["ranked"][:10], 1): pages[src].append([name, rank])
             rows.append({**q, "pages": pages})
             if i % 100 == 0: log(f"pooled {i}/{len(qs)}")
-    wr("pool.jsonl", rows)
+    wr(out_name, rows)
     log("pool sizes: mean", round(sum(len(r["pages"]) for r in rows) / len(rows), 1))
 
 
@@ -464,10 +468,10 @@ If the question asks for a specific tool, language or platform (for example "wit
 Judge only from what is shown. Give a one-sentence reason first, then the grade, as JSON."""
 
 
-def excerpt_builder():
+def excerpt_builder(db_path=None):
     import numpy as np
     from docsearch import store
-    db = store.connect(DB, readonly=True, shared=True); lock = threading.Lock()
+    db = store.connect(db_path or DB, readonly=True, shared=True); lock = threading.Lock()
     def build(source, qvec, question, token=None):
         repo, path = source.split("/", 1)
         with lock:
@@ -492,7 +496,7 @@ def excerpt_builder():
 
 def judge(a):
     import numpy as np
-    pool_rows = rd("pool.jsonl"); qv = np.load(OUT / "qvec_nomic.npy")
+    pool_rows = rd(a.pool); qv = np.load(OUT / "qvec_nomic.npy")
     cands = {r["item"]: r for r in rd("candidates.jsonl")}
     for l in (H / "eval/questions.jsonl").read_text().splitlines():      # v1: judge the original gold pages too
         q = json.loads(l)
@@ -505,7 +509,7 @@ def judge(a):
         for s in dict.fromkeys(srcs):
             todo.append({"item": f"{r['item']}|{s}", "qi": i, "question": r["question"], "source": s, "token": c.get("token")})
     if a.limit: todo = random.Random(SEED).sample(todo, a.limit)
-    build = excerpt_builder()
+    build = excerpt_builder(Path(a.db) if a.db else None)
     with LlmServer(JUDGE_MODEL, 8093, a.parallel, a.parallel * 5120, a.device) as srv:
         http = httpx.Client()
         def fn(t):
@@ -615,16 +619,39 @@ def review(qs, grades, reasons, url):
     log("wrote", dest)
 
 
+def lenient_for(a):
+    """judgments-<tag>.json: lenient gold for the final questions from ALL judged pairs (both pools) + human review.
+    Unanswerable questions that gained a grade-2 page are listed under _now_answerable (they stay in questions.jsonl so
+    comparisons remain paired; compare.py leaves them out of the AUC for this judgment file)."""
+    grades = defaultdict(dict)
+    for r in rd("judged.jsonl"):
+        it, src = r["item"].split("|", 1)
+        if r.get("grade") is not None: grades[it][src] = r["grade"]
+    hr = json.loads((OUT / "human_review.json").read_text())
+    out, now = {"_about": f"lenient judgments for index '{a.tag}' (pools: {a.pools})"}, {}
+    for q in rd("questions.jsonl"):
+        g = dict(grades[q["item"]]); g.update(hr.get("set_grade", {}).get(q["id"], {}))
+        for s in hr.get("add_ok", {}).get(q["id"], []): g[s] = 2
+        ok = sorted(s for s, v in g.items() if v == 2 and s not in q["gold"])
+        out[q["id"]] = {"also_ok": ok, "grades": g}
+        if not q["answerable"] and ok: now[q["id"]] = ok
+    out["_now_answerable"] = now
+    (OUT / f"judgments-{a.tag}.json").write_text(json.dumps(out, indent=1, ensure_ascii=False))
+    log(f"judgments-{a.tag}.json: unanswerable now answerable: {len(now)}", {k: v[:2] for k, v in now.items()})
+
+
 def main():
     ap = argparse.ArgumentParser(); sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("sample")
     g = sub.add_parser("generate"); g.add_argument("--parallel", type=int, default=4); g.add_argument("--device", default="ROCm0")
     g.add_argument("--limit", type=int)
-    sub.add_parser("filter"); sub.add_parser("pool"); sub.add_parser("finalize")
+    sub.add_parser("filter"); sub.add_parser("finalize")
+    po = sub.add_parser("pool"); po.add_argument("--db"); po.add_argument("--out"); po.add_argument("--no-bge", action="store_true")
+    lf = sub.add_parser("lenient"); lf.add_argument("--tag", required=True); lf.add_argument("--pools", default="pool.jsonl")
     j = sub.add_parser("judge"); j.add_argument("--parallel", type=int, default=8); j.add_argument("--device", default="ROCm0")
-    j.add_argument("--limit", type=int)
+    j.add_argument("--limit", type=int); j.add_argument("--pool", default="pool.jsonl"); j.add_argument("--db")
     a = ap.parse_args()
-    {"sample": sample, "generate": generate, "filter": filter_, "pool": pool, "judge": judge, "finalize": finalize}[a.cmd](a)
+    {"sample": sample, "generate": generate, "filter": filter_, "pool": pool, "judge": judge, "finalize": finalize, "lenient": lenient_for}[a.cmd](a)
 
 
 if __name__ == "__main__":

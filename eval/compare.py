@@ -31,7 +31,7 @@ from docsearch.server import SERVER_CONFIG, _Embeddings
 H = Path(__file__).resolve().parents[1]; Q2 = H / "eval" / "qset2"; R = H / "eval" / "results"
 D = SearchConfig()
 INDEXES = {"nomic": (H / "data" / "current.db", "nomic"), "rebuild": (H / "data" / "rebuild-nomic" / "current.db", "nomic"),
-           "bge": (H / "data" / "exp-bge-m3.db", "bge")}
+           "bge": (H / "data" / "exp-bge-m3.db", "bge"), "c2": (H / "data" / "corpus2" / "current.db", "nomic")}
 CONFIGS = {"bm25": (replace(D, vector=0), False), "vector": (replace(D, bm25=0, phrase=0, ident=0), False), "hybrid": (D, False),
            "rerank": (SERVER_CONFIG, True), "expand": (replace(D, expand_vec=1.0), True),
            "server": (replace(SERVER_CONFIG, expand_vec=1.0), True)}       # server = what `docsearch serve` runs
@@ -46,9 +46,14 @@ class BgeServer(EmbedServer):
         c = super()._cmd(exe); c[c.index("--pooling") + 1] = "cls"; c[c.index("-b") + 1] = "4096"; c[c.index("-ub") + 1] = "4096"; return c
 
 
-def load(set_name: str, split: str):
+def load(set_name: str, split: str, judgments: str | None = None):
     if set_name == "qset2":
-        strict = E.load_questions(Q2 / "questions.jsonl"); lenient = E.load_questions(Q2 / "questions.jsonl", lenient=True)
+        strict = E.load_questions(Q2 / "questions.jsonl"); lenient = E.load_questions(Q2 / "questions.jsonl")
+        J = json.loads((Q2 / (judgments or "judgments.json")).read_text())
+        now = set(J.get("_now_answerable", {}))
+        for q in lenient: q["gold"] = sorted({*q["gold"], *J.get(q["id"], {}).get("also_ok", [])})
+        # unanswerable questions that this corpus can answer: not unanswerable any more -> out of the AUC (and of scoring)
+        strict = [q for q in strict if q["id"] not in now]; lenient = [q for q in lenient if q["id"] not in now]
     else:
         strict = E.load_questions(); lenient = E.load_questions(lenient=True)
         for q in strict + lenient: q["split"] = "dev"
@@ -75,9 +80,10 @@ def main():
     ap.add_argument("--set", default="qset2", choices=["qset2", "v1"])
     ap.add_argument("--split", default="test", choices=["test", "dev", "all"])
     ap.add_argument("--boot", type=int, default=10000)
+    ap.add_argument("--judgments", help="qset2 lenient judgment file (default judgments.json; judgments-c2.json for the extended corpus)")
     a = ap.parse_args()
     names = [s.strip() for s in a.systems.split(",")]; base = a.baseline or names[0]
-    strict, lenient = load(a.set, a.split); lmap = {q["id"]: q for q in lenient}
+    strict, lenient = load(a.set, a.split, a.judgments); lmap = {q["id"]: q for q in lenient}
     print(f"set={a.set} split={a.split}: {len(strict)} questions ({sum(q['answerable'] for q in strict)} answerable)", flush=True)
 
     texts = [q["question"] for q in strict]
