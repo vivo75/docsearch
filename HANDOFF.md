@@ -4,14 +4,15 @@ Implements `../option-2-local-hybrid-index.md`. Everything lives in this directo
 Run tests: `uv run pytest -q` (83 pass). No background jobs are running; no llama-server is left running.
 
 ## Reconstructed includes (2026-11-01) — read before touching `reusable-content`
-`/mnt/D500G/space/Microsoft/reusable-content/` and `.../azure-dev-docs-pr/` are **NOT the real repos**: stand-ins (9 files) rebuilt from the
+`/mnt/D500G/space/Microsoft/reusable-content/` and `.../azure-dev-docs-pr/` are **NOT the real repos**: stand-ins (15 files: 9 in reusable-content, 6 terraform in azure-dev-docs-pr) rebuilt from the
 rendered Learn pages of the most-used unresolved includes (free-trial note, updated-for-az, both azure-cli-prepare-your-environment, AKS preview callout,
-ARM and Bicep intros, cloud-shell-try-it, terraform-init). Each file has `reconstructed: true` + source URLs in frontmatter (stripped at index time, so the
+ARM and Bicep intros, cloud-shell-try-it, terraform-init, plus the terraform family: abstract, plan, plan-notes, apply-plan, plan-destroy). Each file has `reconstructed: true` + source URLs in frontmatter (stripped at index time, so the
 index text is unmarked); each directory has `RECONSTRUCTED.md` and `manifest.json`. They are not git repos and not in `repos.toml`. Known weak spots: link URLs lost,
 markup/code fences partly inferred. Skipped on purpose: `horz-monitor-ref-metrics-tableheader.md` (header boundary unclear). To undo: delete both directories and run `docsearch build`
 (`docsearch update` would not notice the removal: it only heals newly resolvable includes, not vanished ones). If the real repos are ever cloned, replace the directories and `docsearch build`.
 - `docsearch update` now **heals** pages: `_heal_unresolved` (update.py) re-resolves every `*_unresolved` page and reprocesses those that gained a dependency not in `deps`
   (no git change needed; ~1,700 page reads). First run: 977 pages, 12,340 chunks, 1,489 embedded; index `index-20261101-195217309.db` (live); previous index kept (`pre` in compare.py).
+  Terraform batch: live index `index-20261101-210737332.db` (`h1` in compare.py = the one before); qinc R@5 .417 -> .667 on 72 questions. qset2 `test` no-regression check was still running at commit time: see `data/logs/heal2-compare.log`.
 - Results: no change on qset2 (test/dev), large gain on the new include-targeted set qinc (R@5 .167 -> .604); details in eval/README.md ("qinc").
 - Method (reusable for more includes, ~399 distinct unresolved includes, the 10 used cover ~1,280 of 1,752 occurrences): list unresolved includes with their pages (IncludeResolver on flagged docs),
   fetch 3 rendered pages per include at 1 request / 0.8 s, give source+rendered text to a Haiku agent to extract the text at the marker, check the 3 extractions agree. Avoid tables/tab-heavy includes.

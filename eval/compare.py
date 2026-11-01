@@ -34,7 +34,9 @@ D = SearchConfig()
 INDEXES = {"nomic": (H / "data" / "current.db", "nomic"), "c1": (H / "data" / "index-20261031-144038161.db", "nomic"), "rebuild": (H / "data" / "rebuild-nomic" / "current.db", "nomic"),
            "bge": (H / "data" / "exp-bge-m3.db", "bge"), "c2": (H / "data" / "corpus2" / "current.db", "nomic"),
            # pre = live index before the reconstructed-include heal (2026-11-01 16:09); nomic = after it
-           "pre": (H / "data" / "index-20261101-160916351.db", "nomic")}
+           "pre": (H / "data" / "index-20261101-160916351.db", "nomic"),
+           # h1 = after the first 9 reconstructed includes, before the terraform family (2026-11-01 19:52)
+           "h1": (H / "data" / "index-20261101-195217309.db", "nomic")}
 CONFIGS = {"bm25": (replace(D, vector=0), False), "vector": (replace(D, bm25=0, phrase=0, ident=0), False), "hybrid": (D, False),
            "rerank": (SERVER_CONFIG, True), "expand": (replace(D, expand_vec=1.0), True),
            "server": (replace(SERVER_CONFIG, expand_vec=1.0), True)}       # server = what `docsearch serve` runs

@@ -1,6 +1,7 @@
 """qinc: questions whose answer lives only in a reconstructed include (see eval/README.md, 'qinc').
 
-  uv run python eval/qinc_build.py <unres.json> <questions_dir>
+  uv run python eval/qinc_build.py <unres.json> <questions_dir> [<more questions_dirs>...]
+(each topic's q_<topic>.jsonl is looked up in the dirs in order)
 
 Gold of a question = every page that uses the include (their rendered text contains the answer). Before the heal those pages
 did not contain it in the index, so pre-heal vs post-heal measures the coverage gain. Split: topic-stratified, 3 dev / 3 test
@@ -20,14 +21,21 @@ TOPICS = {  # topic -> (include paths whose users are gold, label)
     "t7": (["~/reusable-content/ce-skilling/azure/includes/cloud-shell-try-it.md"], "cloud-shell-try-it"),
     "t8": (["~/reusable-content/ce-skilling/azure/includes/resource-manager-quickstart-bicep-introduction.md"], "bicep-intro"),
     "t9": (["~/azure-dev-docs-pr/articles/terraform/includes/terraform-init.md"], "terraform-init"),
+    # terraform family, added after the first batch (ids of the first 48 questions stay unchanged)
+    "t10": (["~/azure-dev-docs-pr/articles/terraform/includes/abstract.md"], "terraform-abstract"),
+    "t11": (["~/azure-dev-docs-pr/articles/terraform/includes/terraform-plan.md",
+             "~/azure-dev-docs-pr/articles/terraform/includes/terraform-plan-notes.md"], "terraform-plan"),
+    "t12": (["~/azure-dev-docs-pr/articles/terraform/includes/terraform-apply-plan.md"], "terraform-apply-plan"),
+    "t13": (["~/azure-dev-docs-pr/articles/terraform/includes/terraform-plan-destroy.md"], "terraform-plan-destroy"),
 }
 
-def main(unres, qdir):
+def main(unres, *qdirs):
     use = json.load(open(unres)); OUT.mkdir(exist_ok=True)
     qs, n = [], 0
     for t, (incs, label) in TOPICS.items():
         gold = sorted({f"{r}/{p}" for i in incs for r, p, _ in use.get(i, [])})
-        rows = [json.loads(l) for l in (Path(qdir) / f"q_{t}.jsonl").read_text().splitlines() if l.strip()]
+        qf = next(Path(d) / f"q_{t}.jsonl" for d in qdirs if (Path(d) / f"q_{t}.jsonl").exists())
+        rows = [json.loads(l) for l in qf.read_text().splitlines() if l.strip()]
         for k, row in enumerate(rows):
             n += 1
             qs.append({"id": f"i{n:04d}", "category": "include", "origin": "llm:haiku-5.5", "question": row["question"].strip(),
@@ -37,4 +45,4 @@ def main(unres, qdir):
     print(len(qs), "questions;", {l: len({f'{r}/{p}' for i in inc for r, p, _ in use.get(i, [])}) for _, (inc, l) in TOPICS.items()})
 
 if __name__ == "__main__":
-    main(*sys.argv[1:3])
+    main(*sys.argv[1:])

@@ -129,5 +129,8 @@ identical across pages, extracted by Haiku 5.5 agents; link URLs and exact marku
   MRR .135 -> .457 [Δ +.323, +.221..+.429], nDCG@10 .069 -> .319. Test half alone R@5 .208 -> .625, dev .125 -> .583.
   By topic R@5 (pre -> post): Cloud Shell 0 -> .83, terraform init 0 -> .83, AKS preview callout .50 -> .83, Az PowerShell note .67 -> .83,
   CLI prerequisites 0 -> .50, ARM intro .17 -> .50, Bicep intro 0 -> .50, **free-trial note 0 -> 0** (generic wording; many other pages answer it, 258 gold pages never reach the top 5).
+- **Terraform batch (2026-11-01)**: 6 more terraform includes (abstract, plan, plan-notes, apply-plan, plan-destroy; 24 new questions, qinc = 72).
+  `--systems h1/server,nomic/server --baseline h1/server` (h1 = index before this batch, `index-20261101-195217309.db`), all 72 questions:
+  R@5 .417 -> .667 [Δ +.250, CI +.139..+.361], MRR .317 -> .497 [Δ +.180, +.098..+.265], nDCG@10 .216 -> .386. Per-topic split not computed yet.
 - Caveats: the questions target exactly this content (best case); n = 48 (6 per topic); model-written questions; `pre` is the index before the heal
   (`index-20261101-160916351.db`, registered in `compare.py` as `pre`; keep that file while this comparison matters).
