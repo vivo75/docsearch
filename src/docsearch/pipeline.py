@@ -38,6 +38,8 @@ class Processor:
             return None
         if self.repo.fmt == "azcli-yaml":
             raw = azcli_to_markdown(raw)
+            if raw is None:                 # malformed reference YAML: skip this page, never abort the build
+                return None
         page = parse_page(raw)
         res = self.resolver.resolve(page.body, path)
         text, links = normalize(res.text, lambda target: self._target_url(path, target))

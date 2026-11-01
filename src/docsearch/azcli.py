@@ -36,8 +36,14 @@ def _params(title: str, ps: list[dict] | None) -> list[str]:
     return out + [""]
 
 
-def to_markdown(raw: str) -> str:
-    d = yaml.safe_load(raw.replace("\t", " ")) or {}
+def to_markdown(raw: str) -> str | None:
+    """None when the file is not valid YAML or not a command-group mapping (the caller skips the page)."""
+    try:
+        d = yaml.safe_load(raw.replace("\t", " "))
+    except yaml.YAMLError:
+        return None
+    if not isinstance(d, dict):
+        return None
     name = d.get("name") or d.get("uid", "").replace("_", " ")
     summary = _clean(d.get("summary"))
     L = ["---", f"title: {yaml.safe_dump(name, default_style='\"').strip()}",
