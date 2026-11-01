@@ -468,7 +468,7 @@ def excerpt_builder():
     import numpy as np
     from docsearch import store
     db = store.connect(DB, readonly=True, shared=True); lock = threading.Lock()
-    def build(source, qvec, question):
+    def build(source, qvec, question, token=None):
         repo, path = source.split("/", 1)
         with lock:
             d = db.execute("SELECT doc_id, title, description FROM docs WHERE repo=? AND path=?", (repo, path)).fetchone()
@@ -479,7 +479,8 @@ def excerpt_builder():
         cos = [float(np.frombuffer(e, dtype=np.float32) @ qvec) if e else -1 for *_, e in ch]
         qw = set(words(question))
         lex = [len(qw & set(words(t))) for _, _, t, _ in ch]
-        pick = list(dict.fromkeys([0] + sorted(range(len(ch)), key=lambda i: -cos[i])[:2] + [max(range(len(ch)), key=lambda i: lex[i])]))
+        literal = [i for i in range(len(ch)) if token and token in ch[i][2]][:2]     # identifier questions: show where it occurs
+        pick = list(dict.fromkeys(literal + [0] + sorted(range(len(ch)), key=lambda i: -cos[i])[:2] + [max(range(len(ch)), key=lambda i: lex[i])]))
         ex = "\n\n".join(f"[{ch[i][1] or 'top of page'}]\n{ch[i][2][:1600]}" for i in sorted(pick))
         return {"title": d[1], "desc": (d[2] or "")[:300], "outline": " | ".join(heads[:40])[:1500], "excerpts": ex}
     return build
@@ -489,18 +490,22 @@ def judge(a):
     import numpy as np
     pool_rows = rd("pool.jsonl"); qv = np.load(OUT / "qvec_nomic.npy")
     cands = {r["item"]: r for r in rd("candidates.jsonl")}
+    for l in (H / "eval/questions.jsonl").read_text().splitlines():      # v1: judge the original gold pages too
+        q = json.loads(l)
+        cands["v1:" + q["id"]] = {"source": q["gold"][0] if q["gold"] else None, "source2": q["gold"][1] if len(q["gold"]) > 1 else None,
+                                  "token": q.get("token"), "category": "v1"}
     todo = []
     for i, r in enumerate(pool_rows):
         c = cands.get(r["item"], {})
         srcs = list(r["pages"]) + [s for s in (c.get("source"), c.get("source2")) if s and c.get("category") != "identifier"]
         for s in dict.fromkeys(srcs):
-            todo.append({"item": f"{r['item']}|{s}", "qi": i, "question": r["question"], "source": s})
+            todo.append({"item": f"{r['item']}|{s}", "qi": i, "question": r["question"], "source": s, "token": c.get("token")})
     if a.limit: todo = random.Random(SEED).sample(todo, a.limit)
     build = excerpt_builder()
     with LlmServer(JUDGE_MODEL, 8093, a.parallel, a.parallel * 5120, a.device) as srv:
         http = httpx.Client()
         def fn(t):
-            x = build(t["source"], qv[t["qi"]], t["question"])
+            x = build(t["source"], qv[t["qi"]], t["question"], t.get("token"))
             if x is None: return {**t, "grade": None, "reason": "page not in index"}
             out = chat(http, srv.url, JUDGE_PROMPT.format(q=t["question"], source=t["source"], **x), JUDGE_SCHEMA, max_tokens=200, temperature=0)
             return {"item": t["item"], "question": t["question"], "source": t["source"], **out}
