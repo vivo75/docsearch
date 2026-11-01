@@ -1,19 +1,17 @@
 """python eval/bge_eval.py  -> same harness, same questions/expansions/rerank cache, nomic (current.db) vs bge-m3 (exp-bge-m3.db).
 Configs are fixed in advance (no re-tuning of weights for bge-m3). Prints strict + lenient tables, canary pass, per-question changes."""
-import json, os, time, tomllib
+import json, time, tomllib
 from dataclasses import replace
 from pathlib import Path
 from docsearch import evalrun as E
 from docsearch.config import load_config
-from docsearch.embed import hf_file, Embedder, EmbedServer
+from docsearch.embed import BgeServer, Embedder
 from docsearch.expand import QueryExpander
 from docsearch.rerank import Reranker, RerankServer
 from docsearch.search import SearchConfig
 from docsearch.server import _Embeddings, SERVER_CONFIG
 
 H = Path(__file__).resolve().parents[1]; R = H / "eval" / "results"
-GGUF = hf_file("ggml-org/bge-m3-Q8_0-GGUF", "bge-m3-q8_0.gguf")
-DEVICE = os.environ.get("BGE_DEVICE", "ROCm0")   # 7900 XTX: ROCm matches the RX 6600 slice vectors best (cos .9998) and is fastest
 DBS = {"nomic": H / "data" / "current.db", "bge-m3": H / "data" / "exp-bge-m3.db"}
 strict, lenient = E.load_questions(), E.load_questions(lenient=True)
 ex = QueryExpander("", R / "expansions.json"); cfg = load_config(H / "repos.toml")
@@ -23,13 +21,7 @@ CONFIGS = {"vector-only": replace(D, bm25=0, phrase=0, ident=0), "hybrid": D, "h
            "hybrid + expand_vec": replace(D, expand_vec=1.0), "SERVER (expand_vec + rerank)": replace(RR, expand_vec=1.0)}
 
 
-class Bge(EmbedServer):
-    def __init__(self): super().__init__(GGUF, DEVICE, 8095, ctx=4096, parallel=2)
-    def _cmd(self, exe):
-        c = super()._cmd(exe); c[c.index("--pooling") + 1] = "cls"; c[c.index("-b") + 1] = "4096"; c[c.index("-ub") + 1] = "4096"; return c
-    def __enter__(self):
-        if self._up(): raise RuntimeError("port 8095 already answers")
-        return super().__enter__()
+Bge = BgeServer
 
 
 texts = sorted({t for q in lenient for t in (q["question"], q["question"] + " " + ex.cache[q["question"]])})

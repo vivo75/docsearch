@@ -2,31 +2,19 @@
 Full-corpus bge-m3 experiment index: copies data/current.db -> data/exp-bge-m3.db (NOT index-*.db, so swap() never prunes it),
 replaces chunks_vec with 1024-d bge-m3 vectors (cls pooling, no prefixes), resumable; restarts the server every 15k chunks.
 `check` embeds 200 slice-pool chunks through the same path and compares them with eval/results/slice_bge-m3.npy."""
-import json, os, shutil, sqlite3, sys, time
+import json, shutil, sqlite3, sys, time
 from pathlib import Path
 import numpy as np
 from docsearch import store
 from docsearch.build import embed_text
-from docsearch.embed import hf_file, Embedder, EmbedServer
+from docsearch.embed import BgeServer, Embedder   # bge-m3 on port 8095, device from BGE_DEVICE
 
 H = Path(__file__).resolve().parents[1]; R = H / "eval" / "results"
 SRC, DST = H / "data" / "current.db", H / "data" / "exp-bge-m3.db"
-GGUF = hf_file("ggml-org/bge-m3-Q8_0-GGUF", "bge-m3-q8_0.gguf")
-DEVICE = os.environ.get("BGE_DEVICE", "ROCm0")   # 7900 XTX: ROCm matches the RX 6600 slice vectors best (cos .9998) and is fastest
-PORT = 8095          # dedicated: EmbedServer.__enter__ accepts ANY healthy server on its port (nomic lives on 8099/8098)
 GROUP, RESTART_EVERY = 1500, 10
 
 
-class Srv(EmbedServer):
-    def __init__(self):
-        super().__init__(GGUF, DEVICE, PORT, ctx=8192, parallel=2)
-
-    def _cmd(self, exe):
-        c = super()._cmd(exe); c[c.index("--pooling") + 1] = "cls"; c[c.index("-b") + 1] = "4096"; c[c.index("-ub") + 1] = "4096"; return c
-
-    def __enter__(self):
-        if self._up(): raise RuntimeError(f"port {PORT} already answers: refusing to reuse an unknown server")
-        return super().__enter__()
+def Srv(): return BgeServer(ctx=8192)
 
 
 def mk_embedder(srv): return Embedder(srv.url, workers=1, batch_tokens=3500, batch_items=16)

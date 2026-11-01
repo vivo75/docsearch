@@ -130,3 +130,26 @@ class Embedder:
                 for i, v in zip(b, res):
                     out[i] = v
         return out  # type: ignore[return-value]
+
+
+BGE_M3 = hf_file("ggml-org/bge-m3-Q8_0-GGUF", "bge-m3-q8_0.gguf")
+
+
+class BgeServer(EmbedServer):
+    """bge-m3 Q8 server for the embedding experiments: CLS pooling, no prefixes, port 8095, device from BGE_DEVICE
+    (default ROCm0: on the RX 7900 XTX it matches the RX 6600 slice vectors best, cos .9998, and is fastest).
+    Refuses to start when something already answers on the port (EmbedServer would silently reuse an unknown server)."""
+    PORT = 8095
+
+    def __init__(self, ctx: int = 4096, parallel: int = 2):
+        super().__init__(BGE_M3, os.environ.get("BGE_DEVICE", "ROCm0"), self.PORT, ctx=ctx, parallel=parallel)
+
+    def _cmd(self, exe: str) -> list[str]:
+        c = super()._cmd(exe)
+        c[c.index("--pooling") + 1] = "cls"; c[c.index("-b") + 1] = "4096"; c[c.index("-ub") + 1] = "4096"
+        return c
+
+    def __enter__(self) -> "BgeServer":
+        if self._up():
+            raise RuntimeError(f"port {self.PORT} already answers: refusing to reuse an unknown server")
+        return super().__enter__()
