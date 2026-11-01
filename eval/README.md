@@ -83,3 +83,12 @@ A candidate replaces the current server configuration only if, on the **qset2 te
 Latency is reported but is not a gate (user priority: precision over latency). Tuning and exploration use the dev split
 (qset2 dev + v1); the test split is run once per decision. A candidate that fails stays available for re-test only on a new
 or enlarged test set, not by retuning on this one.
+
+## Decision run: bge-m3 on qset2 test (2026-11-01) — NOT adopted
+`compare.py --set qset2 --split test` (300 answerable + 13 unanswerable test questions; log `results/compare-test.log`):
+bge/server vs nomic/server ΔMRR strict -0.008 [-0.033, +0.018], lenient +0.003 [-0.018, +0.024] -> rule 1 fails.
+ΔR@5 +0.021 / +0.018 and ΔnDCG +0.007 / +0.017 (CIs include 0); p50 latency 1.47 s vs 1.10 s. Same verdict as the v1 run,
+now with CIs about half as wide (±0.025 MRR). The rebuilt nomic index equals the copied one (all Δ ≈ 0).
+Observations for dev-split work (not decisions): the server config beats plain hybrid at rank 1 (R@1 .618 vs .572) but not at
+R@5 (.806 vs .823): reranking pushes some gold pages out of the top 5; it raises unanswerable AUC (.90 vs .65). Variant accuracy
+on qset2 is low (~.64): the right page is found but the hit carries the wrong tab/pivot.
