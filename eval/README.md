@@ -101,3 +101,7 @@ c2/server vs nomic/server ΔMRR strict +0.001 [-0.008, +0.010], lenient +0.005 [
 canaries pass; p50 1.10 -> 1.24 s.
 Caveat: qset2 questions were generated from pages of the original corpus, so its strict gold cannot contain the new pages; the
 set measures "no harm" here, not the coverage gain that motivated the change (12 of 20 reviewer pages were outside the corpus).
+**Adopted by the user 2026-11-01** ("adopt now, measure after"): `data/current.db` -> `index-20261101-160916351.db` (299,349
+chunks, 17 repos). Previous live index kept: `index-20261031-144038161.db` (`compare.py` name `c1`); roll back with
+`ln -sfn index-20261031-144038161.db data/current.db`. Default lenient judgments for compare.py are now `judgments-c2.json`.
+Follow-up: a question set generated from the NEW pages, to measure the coverage gain this test set cannot see.

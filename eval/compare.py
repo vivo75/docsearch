@@ -30,7 +30,8 @@ from docsearch.server import SERVER_CONFIG, _Embeddings
 
 H = Path(__file__).resolve().parents[1]; Q2 = H / "eval" / "qset2"; R = H / "eval" / "results"
 D = SearchConfig()
-INDEXES = {"nomic": (H / "data" / "current.db", "nomic"), "rebuild": (H / "data" / "rebuild-nomic" / "current.db", "nomic"),
+# nomic = the live index (since 2026-11-01 the extended corpus, same file as c2); c1 = the original 14-repo corpus
+INDEXES = {"nomic": (H / "data" / "current.db", "nomic"), "c1": (H / "data" / "index-20261031-144038161.db", "nomic"), "rebuild": (H / "data" / "rebuild-nomic" / "current.db", "nomic"),
            "bge": (H / "data" / "exp-bge-m3.db", "bge"), "c2": (H / "data" / "corpus2" / "current.db", "nomic")}
 CONFIGS = {"bm25": (replace(D, vector=0), False), "vector": (replace(D, bm25=0, phrase=0, ident=0), False), "hybrid": (D, False),
            "rerank": (SERVER_CONFIG, True), "expand": (replace(D, expand_vec=1.0), True),
@@ -49,7 +50,7 @@ class BgeServer(EmbedServer):
 def load(set_name: str, split: str, judgments: str | None = None):
     if set_name == "qset2":
         strict = E.load_questions(Q2 / "questions.jsonl"); lenient = E.load_questions(Q2 / "questions.jsonl")
-        J = json.loads((Q2 / (judgments or "judgments.json")).read_text())
+        J = json.loads((Q2 / (judgments or "judgments-c2.json")).read_text())   # lenient gold for the live (extended) corpus
         now = set(J.get("_now_answerable", {}))
         for q in lenient: q["gold"] = sorted({*q["gold"], *J.get(q["id"], {}).get("also_ok", [])})
         # unanswerable questions that this corpus can answer: not unanswerable any more -> out of the AUC (and of scoring)
@@ -80,7 +81,7 @@ def main():
     ap.add_argument("--set", default="qset2", choices=["qset2", "v1"])
     ap.add_argument("--split", default="test", choices=["test", "dev", "all"])
     ap.add_argument("--boot", type=int, default=10000)
-    ap.add_argument("--judgments", help="qset2 lenient judgment file (default judgments.json; judgments-c2.json for the extended corpus)")
+    ap.add_argument("--judgments", help="qset2 lenient judgment file (default judgments-c2.json, the live extended corpus; judgments.json = original corpus only)")
     a = ap.parse_args()
     names = [s.strip() for s in a.systems.split(",")]; base = a.baseline or names[0]
     strict, lenient = load(a.set, a.split, a.judgments); lmap = {q["id"]: q for q in lenient}
