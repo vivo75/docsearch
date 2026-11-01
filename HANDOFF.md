@@ -12,7 +12,7 @@ markup/code fences partly inferred. Skipped on purpose: `horz-monitor-ref-metric
 (`docsearch update` would not notice the removal: it only heals newly resolvable includes, not vanished ones). If the real repos are ever cloned, replace the directories and `docsearch build`.
 - `docsearch update` now **heals** pages: `_heal_unresolved` (update.py) re-resolves every `*_unresolved` page and reprocesses those that gained a dependency not in `deps`
   (no git change needed; ~1,700 page reads). First run: 977 pages, 12,340 chunks, 1,489 embedded; index `index-20261101-195217309.db` (live); previous index kept (`pre` in compare.py).
-  Terraform batch: live index `index-20261101-210737332.db` (`h1` in compare.py = the one before); qinc R@5 .417 -> .667 on 72 questions. qset2 `test` no-regression check was still running at commit time: see `data/logs/heal2-compare.log`.
+  Terraform batch: live index `index-20261101-210737332.db` (`h1` in compare.py = the one before); qinc R@5 .417 -> .667 on 72 questions. qset2 `test` (311 q): identical to h1 on every metric (R@5 .816, MRR .710, unans. AUC .912), no regression.
 - Results: no change on qset2 (test/dev), large gain on the new include-targeted set qinc (R@5 .167 -> .604); details in eval/README.md ("qinc").
 - Method (reusable for more includes, ~399 distinct unresolved includes, the 10 used cover ~1,280 of 1,752 occurrences): list unresolved includes with their pages (IncludeResolver on flagged docs),
   fetch 3 rendered pages per include at 1 request / 0.8 s, give source+rendered text to a Haiku agent to extract the text at the marker, check the 3 extractions agree. Avoid tables/tab-heavy includes.
