@@ -48,9 +48,10 @@ class BgeServer(EmbedServer):
 
 
 def load(set_name: str, split: str, judgments: str | None = None):
-    if set_name == "qset2":
-        strict = E.load_questions(Q2 / "questions.jsonl"); lenient = E.load_questions(Q2 / "questions.jsonl")
-        J = json.loads((Q2 / (judgments or "judgments-c2.json")).read_text())   # lenient gold for the live (extended) corpus
+    if set_name in ("qset2", "qset3"):
+        Qd = H / "eval" / set_name
+        strict = E.load_questions(Qd / "questions.jsonl"); lenient = E.load_questions(Qd / "questions.jsonl")
+        J = json.loads((Qd / (judgments or ("judgments-c2.json" if set_name == "qset2" else "judgments.json"))).read_text())   # lenient gold for the live (extended) corpus
         now = set(J.get("_now_answerable", {}))
         for q in lenient: q["gold"] = sorted({*q["gold"], *J.get(q["id"], {}).get("also_ok", [])})
         # unanswerable questions that this corpus can answer: not unanswerable any more -> out of the AUC (and of scoring)
@@ -78,7 +79,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--systems", default="nomic/server,bge/server")
     ap.add_argument("--baseline", help="default: the first system")
-    ap.add_argument("--set", default="qset2", choices=["qset2", "v1"])
+    ap.add_argument("--set", default="qset2", choices=["qset2", "qset3", "v1"])
     ap.add_argument("--split", default="test", choices=["test", "dev", "all"])
     ap.add_argument("--boot", type=int, default=10000)
     ap.add_argument("--judgments", help="qset2 lenient judgment file (default judgments-c2.json, the live extended corpus; judgments.json = original corpus only)")
@@ -88,7 +89,7 @@ def main():
     print(f"set={a.set} split={a.split}: {len(strict)} questions ({sum(q['answerable'] for q in strict)} answerable)", flush=True)
 
     texts = [q["question"] for q in strict]
-    ex = QueryExpander("", Q2 / "expansions.json")
+    ex = QueryExpander("", (H / "eval" / a.set if a.set != "v1" else Q2) / "expansions.json")
     if any(CONFIGS[n.split("/")[1]][1] for n in names):
         missing = [t for t in texts if t not in ex.cache]
         if missing: raise SystemExit(f"{len(missing)} questions have no cached expansion (run qset2.py pool first)")
@@ -117,7 +118,7 @@ def main():
 
     if any(CONFIGS[n.split("/")[1]][1] for n in names):
         with RerankServer("bge-v2-m3-q8") as rs:
-            res = evaluate(Reranker(rs.url, "bge-v2-m3-q8", cache=Q2 / "rerank_cache.jsonl"))
+            res = evaluate(Reranker(rs.url, "bge-v2-m3-q8", cache=(H / "eval" / a.set if a.set != "v1" else Q2) / "rerank_cache.jsonl"))
     else:
         res = evaluate(None)
 

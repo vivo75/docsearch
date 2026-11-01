@@ -34,7 +34,8 @@ import httpx
 from docsearch.embed import EmbedServer, hf_file
 
 H = Path(__file__).resolve().parents[1]
-OUT = H / "eval" / "qset2"
+import os
+OUT = H / "eval" / os.environ.get("QSET", "qset2")      # QSET=qset3: the question set built from the corpus additions
 DB = H / "data" / "current.db"
 SEED = 20261031
 
@@ -376,8 +377,8 @@ def filter_(a):
     quota = {**{k: v for k, v in CAT_QUOTA.items()}, **{f"AZ:{k}": v for k, v in AZ_CAT_QUOTA.items()},
              **{f"repo:{k}": v for k, v in REPO_QUOTA.items()}, "unanswerable": sum(UNANS_QUOTA.values()) * OVERGEN}
     for k, rs in sorted(groups.items()):
-        rng.shuffle(rs); n = math.ceil(quota[k] * buf); final += rs[:n]
-        stats[f"short:{k}"] += max(0, math.ceil(quota[k]) - len(rs))
+        rng.shuffle(rs); n = math.ceil(quota[k] * buf) if k in quota else len(rs); final += rs[:n]
+        if k in quota: stats[f"short:{k}"] += max(0, math.ceil(quota[k]) - len(rs))
     wr("candidates.jsonl", final)
     log("filter:", dict(stats)); log("candidates:", Counter(r["cat"] for r in final), len(final))
 
@@ -386,7 +387,7 @@ def filter_(a):
 def all_questions():
     """Candidates + the 58 v1 questions (re-judged with the same judge, so dev numbers use the same rules)."""
     qs = [{"item": r["item"], "question": r["question"], "expected_variant": r.get("variant")} for r in rd("candidates.jsonl")]
-    for l in (H / "eval/questions.jsonl").read_text().splitlines():
+    for l in (H / "eval/questions.jsonl").read_text().splitlines() if OUT.name == "qset2" else []:
         q = json.loads(l); qs.append({"item": "v1:" + q["id"], "question": q["question"], "expected_variant": q.get("expected_variant")})
     return qs
 
@@ -640,18 +641,59 @@ def lenient_for(a):
     log(f"judgments-{a.tag}.json: unanswerable now answerable: {len(now)}", {k: v[:2] for k, v in now.items()})
 
 
+# ---------------------------------------------------------------- qset3: questions from the corpus additions (2026-11-01)
+NEW_QUOTA = {"azure-cli-reference": 30, "azure-cli-docs": 15, "azure-support-articles": 35}
+
+
+def sample_new(a):
+    """Pages of the repos added on 2026-11-01 only; the generator picks the category ("auto")."""
+    rng = random.Random(SEED); db = connect(); items = []
+    for repo, q in NEW_QUOTA.items():
+        docs = db.execute("SELECT d.doc_id, d.path, d.title, d.ms_topic, sum(c.token_count) FROM docs d JOIN chunks c USING(doc_id) "
+                          "WHERE d.repo=? GROUP BY d.doc_id HAVING sum(c.token_count) >= 250", (repo,)).fetchall()
+        docs = [d for d in docs if d[2] and not re.search(r"^index$|overview of all|table of contents", d[2], re.I)]
+        rng.shuffle(docs)
+        for d in docs[:round(q * OVERGEN)]:
+            items.append({"kind": "page", "category": "auto", "group": repo, "doc_id": d[0], "source": f"{repo}/{d[1]}",
+                          "title": d[2], "topic": d[3]})
+    for i, it in enumerate(items): it["item"] = f"x{i:04d}"
+    wr("pages.jsonl", items); log("sampled", Counter(i["group"] for i in items))
+
+
+def finalize_new(a):
+    """Keep questions whose source page is judged 2; all go to 'test'. Report how often the ORIGINAL corpus also had a grade-2
+    page (= the addition was not needed for that question)."""
+    added = set(NEW_QUOTA)
+    grades = defaultdict(dict)
+    for r in rd("judged.jsonl"):
+        it, src = r["item"].split("|", 1)
+        if r.get("grade") is not None: grades[it][src] = r["grade"]
+    qs, judg, stats = [], {"_about": "qset3: questions written from pages added on 2026-11-01; lenient = grade-2 pages from both pools"}, Counter()
+    for n, c in enumerate(rd("candidates.jsonl"), 1):
+        g = grades.get(c["item"], {})
+        if g.get(c["source"], 0) < 2: stats["source_not_2"] += 1; continue
+        qid = f"x{n:04d}"; old_ok = sorted(s for s, v in g.items() if v == 2 and s.split("/", 1)[0] not in added)
+        qs.append({"id": qid, "category": c["cat"], "origin": "llm:qwen3.8-27b", "question": c["question"], "gold": [c["source"]],
+                   "answerable": True, "split": "test", "item": c["item"], "repo": c["group"], "old_corpus_ok": bool(old_ok)})
+        judg[qid] = {"also_ok": sorted(s for s, v in g.items() if v == 2 and s != c["source"]), "grades": g}
+        stats[f"kept:{c['group']}"] += 1; stats[f"old_corpus_ok:{c['group']}"] += bool(old_ok)
+    wr("questions.jsonl", qs); (OUT / "judgments.json").write_text(json.dumps(judg, indent=1, ensure_ascii=False))
+    log("finalize-new:", dict(stats), f"{len(qs)} questions; the original corpus had a grade-2 page for "
+        f"{sum(q['old_corpus_ok'] for q in qs)}/{len(qs)}")
+
+
 def main():
     ap = argparse.ArgumentParser(); sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("sample")
     g = sub.add_parser("generate"); g.add_argument("--parallel", type=int, default=4); g.add_argument("--device", default="ROCm0")
     g.add_argument("--limit", type=int)
-    sub.add_parser("filter"); sub.add_parser("finalize")
+    sub.add_parser("filter"); sub.add_parser("finalize"); sub.add_parser("sample-new"); sub.add_parser("finalize-new")
     po = sub.add_parser("pool"); po.add_argument("--db"); po.add_argument("--out"); po.add_argument("--no-bge", action="store_true")
     lf = sub.add_parser("lenient"); lf.add_argument("--tag", required=True); lf.add_argument("--pools", default="pool.jsonl")
     j = sub.add_parser("judge"); j.add_argument("--parallel", type=int, default=8); j.add_argument("--device", default="ROCm0")
     j.add_argument("--limit", type=int); j.add_argument("--pool", default="pool.jsonl"); j.add_argument("--db")
     a = ap.parse_args()
-    {"sample": sample, "generate": generate, "filter": filter_, "pool": pool, "judge": judge, "finalize": finalize, "lenient": lenient_for}[a.cmd](a)
+    {"sample": sample, "generate": generate, "filter": filter_, "pool": pool, "judge": judge, "finalize": finalize, "lenient": lenient_for, "sample-new": sample_new, "finalize-new": finalize_new}[a.cmd](a)
 
 
 if __name__ == "__main__":
