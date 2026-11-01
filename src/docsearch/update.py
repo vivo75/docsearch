@@ -74,8 +74,8 @@ def make_plan(cfg: Config, db: sqlite3.Connection) -> Plan:
             rp.changed = {"<full>"}
             continue
         rp.changed = cs.touched
-        rp.pages = {p for p in (cs.added | cs.modified | set(cs.renamed.values())) if is_page(p) and repo.in_scope(p)}
-        rp.removed = {p for p in (cs.deleted | set(cs.renamed)) if is_page(p) and repo.in_scope(p)}
+        rp.pages = {p for p in (cs.added | cs.modified | set(cs.renamed.values())) if is_page(p, repo.fmt) and repo.in_scope(p)}
+        rp.removed = {p for p in (cs.deleted | set(cs.renamed)) if is_page(p, repo.fmt) and repo.in_scope(p)}
     # pages whose includes/snippets changed (the dependency may live in another repo)
     touched = {f"{n}/{p}" for n, rp in repos.items() if not rp.full for p in rp.changed}
     deleted_or_changed = list(touched)

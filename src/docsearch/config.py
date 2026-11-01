@@ -15,6 +15,7 @@ class Repo:
     weight: float = 1.0
     url_base: str | None = None  # public site base, None = not published to Learn
     restrict: bool = False       # index only files under docs_root (repos holding several doc versions side by side)
+    fmt: str = "md"              # "md" | "azcli-yaml" (Azure CLI reference YAML, converted to Markdown by azcli.py)
 
     @property
     def docs_dir(self) -> Path:
@@ -41,7 +42,8 @@ def load_config(path: str | Path) -> Config:
     data = tomllib.loads(Path(path).read_text())
     root = (Path(path).parent / data["root"]).resolve()   # relative roots resolve against the config file
     repos = tuple(
-        Repo(r["name"], root / r["name"], r.get("docs_root", "."), r.get("weight", 1.0), r.get("url_base"), r.get("restrict", False))
+        Repo(r["name"], root / r.get("path", r["name"]), r.get("docs_root", "."), r.get("weight", 1.0), r.get("url_base"),
+             r.get("restrict", False), r.get("format", "md"))       # `path`: checkout dir when several entries share one repo
         for r in data["repo"]
     )
     return Config(root, repos)

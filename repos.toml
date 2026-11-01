@@ -82,3 +82,31 @@ url_base = "https://learn.microsoft.com/powershell/module"
 docs_root = "azps-16.4.0"
 restrict = true
 weight = 0.5
+
+# Added 2026-11-01 after the qset2 human review found these gaps (sparse shallow clones, CC-BY-4.0).
+# Azure CLI: conceptual guides (Markdown) and the command reference (YAML, converted by azcli.py) share one checkout.
+[[repo]]
+name = "azure-cli-docs"
+path = "azure-docs-cli"
+url_base = "https://learn.microsoft.com/cli/azure"
+docs_root = "docs-ref-conceptual/Latest-version"
+restrict = true
+weight = 1.0
+
+[[repo]]
+name = "azure-cli-reference"
+path = "azure-docs-cli"
+url_base = "https://learn.microsoft.com/cli/azure"
+docs_root = "docs-ref-autogen/Latest-version/latest"
+restrict = true
+format = "azcli-yaml"
+weight = 0.5
+
+# Azure support / troubleshooting articles (learn.microsoft.com/troubleshoot/azure); sparse checkout of support/azure only.
+[[repo]]
+name = "azure-support-articles"
+path = "SupportArticles-docs"
+url_base = "https://learn.microsoft.com/troubleshoot/azure"
+docs_root = "support/azure"
+restrict = true
+weight = 1.0

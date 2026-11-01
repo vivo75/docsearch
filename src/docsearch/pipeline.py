@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .azcli import to_markdown as azcli_to_markdown
 from .chunker import Chunk, DocInfo, chunk_page
 from .config import Config, Repo
 from .frontmatter import parse_page
@@ -35,6 +36,8 @@ class Processor:
             raw = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             return None
+        if self.repo.fmt == "azcli-yaml":
+            raw = azcli_to_markdown(raw)
         page = parse_page(raw)
         res = self.resolver.resolve(page.body, path)
         text, links = normalize(res.text, lambda target: self._target_url(path, target))

@@ -11,13 +11,15 @@ from .config import EXCLUDE_DIRS, Repo
 _NAMES = ("TOC.yml", "toc.yml")
 
 
-def is_page(rel: str) -> bool:
+def is_page(rel: str, fmt: str = "md") -> bool:
     parts = rel.split("/")
+    if fmt == "azcli-yaml":
+        return rel.endswith(".yml") and parts[-1].lower() != "toc.yml"
     return rel.endswith(".md") and not (set(parts[:-1]) & EXCLUDE_DIRS)
 
 
 def is_indexable(rel: str) -> bool:
-    return rel.endswith(".md") or rel.rsplit("/", 1)[-1] in _NAMES or rel.startswith(".openpublishing") or rel == "docfx.json"
+    return rel.endswith((".md", ".yml")) or rel.rsplit("/", 1)[-1] in _NAMES or rel.startswith(".openpublishing") or rel == "docfx.json"
 
 
 def git(repo: Repo, *args: str) -> str:
@@ -29,8 +31,8 @@ def head(repo: Repo) -> str:
 
 
 def list_pages(repo: Repo) -> list[str]:
-    out = git(repo, "ls-files", "-z", "--", "*.md")
-    return sorted(p for p in out.split("\0") if p and is_page(p) and repo.in_scope(p))
+    out = git(repo, "ls-files", "-z", "--", "*.yml" if repo.fmt == "azcli-yaml" else "*.md")
+    return sorted(p for p in out.split("\0") if p and is_page(p, repo.fmt) and repo.in_scope(p))
 
 
 @dataclass
