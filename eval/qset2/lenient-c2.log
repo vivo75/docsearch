@@ -1,0 +1,2 @@
+17:10:15 judgments-c2.json: unanswerable now answerable: 2 {'n0549': ['azure-support-articles/support/azure/bastion/troubleshoot-session-fails-target-vm-unhealthy.md', 'azure-support-articles/support/azure/virtual-desktop/troubleshoot-agent.md'], 'n0565': ['azure-support-articles/support/azure/virtual-desktop/troubleshoot-agent.md', 'azure-support-articles/support/azure/virtual-machines/windows/troubleshoot-rdp-no-license-server.md']}
+exit 0

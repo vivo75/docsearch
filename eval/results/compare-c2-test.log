@@ -1,0 +1,28 @@
+set=qset2 split=test: 311 questions (283 answerable)
+  ran nomic/server
+  ran c2/server
+  ran nomic/hybrid
+  ran c2/hybrid
+
+== STRICT (test) ==
+| system             |  R@1  |  R@5  | R@10  |  MRR  |nDCG10 | var.acc| unans.AUC| p50 ms |
+| nomic/server       | 0.618 | 0.806 | 0.848 | 0.709 | 0.719 | 0.643 |    0.907 |   1097 |
+| c2/server          | 0.615 | 0.816 | 0.862 | 0.710 | 0.722 | 0.643 |    0.913 |   1243 |
+| nomic/hybrid       | 0.572 | 0.823 | 0.869 | 0.686 | 0.711 | 0.643 |    0.632 |    672 |
+| c2/hybrid          | 0.569 | 0.827 | 0.869 | 0.684 | 0.709 | 0.607 |    0.654 |    757 |
+  c2/server vs nomic/server: r5 +0.011 [+0.000, +0.025]~   mrr +0.001 [-0.008, +0.010]~   ndcg10 +0.004 [-0.006, +0.015]~
+  nomic/hybrid vs nomic/server: r5 +0.018 [+0.000, +0.035]~   mrr -0.023 [-0.047, +0.000]~   ndcg10 -0.008 [-0.028, +0.012]~
+  c2/hybrid vs nomic/server: r5 +0.021 [+0.000, +0.042]~   mrr -0.025 [-0.049, -0.001]-   ndcg10 -0.009 [-0.029, +0.010]~
+
+== LENIENT (test) ==
+| system             |  R@1  |  R@5  | R@10  |  MRR  |nDCG10 | var.acc| unans.AUC| p50 ms |
+| nomic/server       | 0.799 | 0.898 | 0.926 | 0.850 | 0.705 | 0.607 |    0.907 |   1097 |
+| c2/server          | 0.802 | 0.912 | 0.943 | 0.855 | 0.720 | 0.607 |    0.913 |   1243 |
+| nomic/hybrid       | 0.777 | 0.908 | 0.936 | 0.838 | 0.698 | 0.571 |    0.632 |    672 |
+| c2/hybrid          | 0.767 | 0.915 | 0.940 | 0.834 | 0.703 | 0.536 |    0.654 |    757 |
+  c2/server vs nomic/server: r5 +0.014 [+0.000, +0.032]~   mrr +0.005 [-0.001, +0.013]~   ndcg10 +0.015 [+0.006, +0.026]+
+  nomic/hybrid vs nomic/server: r5 +0.011 [-0.004, +0.028]~   mrr -0.012 [-0.032, +0.008]~   ndcg10 -0.007 [-0.022, +0.009]~
+  c2/hybrid vs nomic/server: r5 +0.018 [+0.000, +0.039]~   mrr -0.017 [-0.037, +0.004]~   ndcg10 -0.002 [-0.018, +0.015]~
+
+wrote eval/results/20261101-174903-compare-qset2-test.json  (+ = CI above 0, - = below 0, ~ = includes 0)
+exit 0

@@ -92,3 +92,12 @@ now with CIs about half as wide (±0.025 MRR). The rebuilt nomic index equals th
 Observations for dev-split work (not decisions): the server config beats plain hybrid at rank 1 (R@1 .618 vs .572) but not at
 R@5 (.806 vs .823): reranking pushes some gold pages out of the top 5; it raises unanswerable AUC (.90 vs .65). Variant accuracy
 on qset2 is low (~.64): the right page is found but the hit carries the wrong tab/pivot.
+
+## Corpus extension on qset2 test (2026-11-01) — rule 1 not met; decision left to the user
+`compare.py --split test --judgments judgments-c2.json` (corpus2 = current corpus + Azure CLI docs/reference + support articles;
+1,030 new pairs judged; 2 unanswerable test questions became answerable on corpus2 and leave the AUC; 283 answerable):
+c2/server vs nomic/server ΔMRR strict +0.001 [-0.008, +0.010], lenient +0.005 [-0.001, +0.013] -> rule 1 fails;
+ΔR@5 +0.011 / +0.014 (CIs from 0), ΔnDCG lenient +0.015 [+0.006, +0.026] (CI above 0); no metric worse; AUC .907 -> .913;
+canaries pass; p50 1.10 -> 1.24 s.
+Caveat: qset2 questions were generated from pages of the original corpus, so its strict gold cannot contain the new pages; the
+set measures "no harm" here, not the coverage gain that motivated the change (12 of 20 reviewer pages were outside the corpus).
