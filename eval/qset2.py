@@ -189,7 +189,7 @@ def sample(a):
     ident_share = {"AZ": 0.6, "azure-docs-powershell": 0.25, "other": 0.15}     # cmdlet pages would otherwise dominate
     gid = lambda d: "AZ" if d[1] in AZ else d[1] if d[1] == "azure-docs-powershell" else "other"
     want_id = {g: round(CAT_QUOTA["identifier"] * OVERGEN * s) for g, s in ident_share.items()}; got_id = Counter()
-    eligible = [d for d in ok if d[1] in AZ or d[1] in ("azure-dev-docs", "azure-docs-powershell", "azure-cli") and d[0] not in used]
+    eligible = [d for d in ok if (d[1] in AZ or d[1] in ("azure-dev-docs", "azure-docs-powershell", "azure-cli")) and d[0] not in used]
     rng.shuffle(eligible)
     for d in eligible:
         doc = d[0]
@@ -405,11 +405,7 @@ def pool(a):
     qs = all_questions(); cfg = load_config(H / "repos.toml"); D = SearchConfig()
     db = Path(a.db) if a.db else DB; out_name = a.out or "pool.jsonl"
 
-    class Bge(EmbedServer):
-        def __init__(s): super().__init__(hf_file("ggml-org/bge-m3-Q8_0-GGUF", "bge-m3-q8_0.gguf"), "ROCm0", 8095, ctx=4096, parallel=2)
-        def _cmd(s, exe):
-            c = super()._cmd(exe); c[c.index("--pooling") + 1] = "cls"; c[c.index("-b") + 1] = "4096"; c[c.index("-ub") + 1] = "4096"; return c
-
+    from docsearch.embed import BgeServer as Bge
     texts = [q["question"] for q in qs]
     with ExpandServer() as xs:
         ex = QueryExpander(xs.url, OUT / "expansions.json")
@@ -592,7 +588,7 @@ def review(qs, grades, reasons, url):
     byc = defaultdict(list)
     for q in qs: byc[q["category"]].append(q)
     pick_q = []
-    while len(pick_q) < 25:
+    while len(pick_q) < min(25, len(qs)):
         for c in sorted(byc):
             rest = [q for q in byc[c] if q not in pick_q]
             if rest and len(pick_q) < 25: pick_q.append(rng.choice(rest))

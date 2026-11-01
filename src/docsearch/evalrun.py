@@ -75,14 +75,14 @@ class GrepProxySystem:
     name = "grep-proxy"
 
     def __init__(self, cfg: Config):
-        self.root = cfg.root.resolve()
-        self.roots = [str(r.path.relative_to(self.root)) for r in cfg.repos]
+        self.root, self.cfg = cfg.root.resolve(), cfg
+        self.roots = [r.rel_dir(self.root) for r in cfg.checkouts()]     # a shared checkout once
         self.n_files = 22000
 
     def _files(self, term: str) -> set[str]:
         p = subprocess.run(["rg", "-l", "-i", "-F", "--glob", "*.md", "-e", term, "--", *self.roots],
                            cwd=self.root, capture_output=True, text=True, timeout=60)
-        return set(p.stdout.split())
+        return {self.cfg.source_for(f) or f for f in p.stdout.split()}      # gold ids are <entry name>/<repo path>
 
     def run(self, q: dict, filtered: bool = False) -> dict:
         t0 = time.perf_counter()

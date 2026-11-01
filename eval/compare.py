@@ -22,7 +22,7 @@ import numpy as np
 
 from docsearch import evalrun as E
 from docsearch.config import load_config
-from docsearch.embed import Embedder, EmbedServer, hf_file
+from docsearch.embed import BgeServer, Embedder
 from docsearch.expand import QueryExpander
 from docsearch.rerank import Reranker, RerankServer
 from docsearch.search import SearchConfig
@@ -39,17 +39,15 @@ CONFIGS = {"bm25": (replace(D, vector=0), False), "vector": (replace(D, bm25=0, 
 METRICS = ("r1", "r5", "r10", "mrr", "ndcg10")
 
 
-class BgeServer(EmbedServer):
-    def __init__(self):
-        super().__init__(hf_file("ggml-org/bge-m3-Q8_0-GGUF", "bge-m3-q8_0.gguf"), "ROCm0", 8095, ctx=4096, parallel=2)
-
-    def _cmd(self, exe):
-        c = super()._cmd(exe); c[c.index("--pooling") + 1] = "cls"; c[c.index("-b") + 1] = "4096"; c[c.index("-ub") + 1] = "4096"; return c
-
 
 def load(set_name: str, split: str, judgments: str | None = None):
     if set_name in ("qset2", "qset3"):
         Qd = H / "eval" / set_name
+        jf = Qd / (judgments or ("judgments-c2.json" if set_name == "qset2" else "judgments.json"))
+        for f in (Qd / "questions.jsonl", jf):
+            if not f.exists():
+                raise SystemExit(f"{f.relative_to(H)} is missing: build it with `QSET={set_name} uv run python eval/qset2.py "
+                                 f"finalize{'-new' if set_name == 'qset3' else ''}` (judgments-c2.json: `qset2.py lenient --tag c2`)")
         strict = E.load_questions(Qd / "questions.jsonl"); lenient = E.load_questions(Qd / "questions.jsonl")
         J = json.loads((Qd / (judgments or ("judgments-c2.json" if set_name == "qset2" else "judgments.json"))).read_text())   # lenient gold for the live (extended) corpus
         now = set(J.get("_now_answerable", {}))

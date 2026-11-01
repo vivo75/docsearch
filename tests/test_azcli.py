@@ -62,3 +62,19 @@ def test_config_shared_checkout(tmp_path: Path):
     a, b = cfg.repo("cli-docs"), cfg.repo("cli-ref")
     assert a.path == b.path == (tmp_path / "corpus" / "azure-docs-cli").resolve()
     assert (a.fmt, b.fmt) == ("md", "azcli-yaml")
+
+
+def test_malformed_or_non_mapping_yaml_is_skipped(tmp_path: Path):
+    from docsearch.pipeline import Processor
+    assert to_markdown("a: [1, 2\n  b: :") is None          # YAML syntax error
+    assert to_markdown("- a\n- b") is None                   # a list, not a command group
+    assert to_markdown("just a string") is None
+    repo = tmp_path / "corpus" / "cli"
+    (repo / "ref").mkdir(parents=True)
+    (repo / "ref" / "bad.yml").write_text("- not\n- a group\n")
+    (repo / "ref" / "ok.yml").write_text(YML)
+    (tmp_path / "repos.toml").write_text('root = "corpus"\n[[repo]]\nname = "cli-ref"\npath = "cli"\ndocs_root = "ref"\nformat = "azcli-yaml"\n')
+    cfg = load_config(tmp_path / "repos.toml")
+    p = Processor(cfg, cfg.repo("cli-ref"))
+    assert p.process("ref/bad.yml") is None
+    assert p.process("ref/ok.yml").doc.title == "az ts"

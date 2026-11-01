@@ -28,6 +28,10 @@ class Repo:
         """Repo-relative POSIX path."""
         return p.resolve().relative_to(self.path.resolve()).as_posix()
 
+    def rel_dir(self, root: Path) -> str:
+        """The checkout directory relative to the corpus root (differs from `name` when repos.toml sets `path`)."""
+        return self.path.resolve().relative_to(root.resolve()).as_posix()
+
 
 @dataclass(frozen=True)
 class Config:
@@ -36,6 +40,29 @@ class Config:
 
     def repo(self, name: str) -> Repo:
         return next(r for r in self.repos if r.name == name)
+
+    def checkouts(self) -> list[Repo]:
+        """One entry per distinct checkout directory, in config order (several entries may share a checkout)."""
+        seen: dict[Path, Repo] = {}
+        for r in self.repos:
+            seen.setdefault(r.path.resolve(), r)
+        return list(seen.values())
+
+    def sharing(self, repo: Repo) -> list[Repo]:
+        """All entries whose checkout is the same directory as `repo`'s (including `repo`)."""
+        return [r for r in self.repos if r.path.resolve() == repo.path.resolve()]
+
+    def source_for(self, corpus_rel: str) -> str | None:
+        """Corpus-relative path (`<checkout dir>/<file>`) -> source id `<entry name>/<repo-relative path>`, choosing the
+        entry whose scope covers the file; None when no configured checkout contains it."""
+        root = self.root.resolve()
+        for r in self.repos:
+            d = r.rel_dir(root)
+            if corpus_rel.startswith(d + "/"):
+                rel = corpus_rel[len(d) + 1:]
+                owner = next((x for x in self.sharing(r) if x.in_scope(rel)), r)
+                return f"{owner.name}/{rel}"
+        return None
 
 
 def load_config(path: str | Path) -> Config:
