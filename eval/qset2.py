@@ -481,7 +481,11 @@ def excerpt_builder():
         lex = [len(qw & set(words(t))) for _, _, t, _ in ch]
         literal = [i for i in range(len(ch)) if token and token in ch[i][2]][:2]     # identifier questions: show where it occurs
         pick = list(dict.fromkeys(literal + [0] + sorted(range(len(ch)), key=lambda i: -cos[i])[:2] + [max(range(len(ch)), key=lambda i: lex[i])]))
-        ex = "\n\n".join(f"[{ch[i][1] or 'top of page'}]\n{ch[i][2][:1600]}" for i in sorted(pick))
+        def window(text):          # 1,600 chars; centred on the identifier when the chunk contains it
+            k = text.find(token) if token else -1
+            s = 0 if k < 1200 else max(0, k - 800)
+            return ("..." if s else "") + text[s:s + 1600]
+        ex = "\n\n".join(f"[{ch[i][1] or 'top of page'}]\n{window(ch[i][2])}" for i in sorted(pick))
         return {"title": d[1], "desc": (d[2] or "")[:300], "outline": " | ".join(heads[:40])[:1500], "excerpts": ex}
     return build
 
