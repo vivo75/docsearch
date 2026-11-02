@@ -182,3 +182,21 @@ Results (nomic index, `eval/results/*-compare-qset2-{dev,test}.json`, `*-compare
 - Without crediting `also_in` the gold page hidden behind a copy counts as missed: qset2 test R@5 -0.014 [-0.028,-0.004] at 0.9 (fails the "no regression" rule); nDCG10 -0.006..-0.015; qinc nDCG10 -0.05..-0.10.
 - Crediting `also_in` (the `x` variants): no significant change on qset2 dev/test; qinc dd9x nDCG10 +0.021 [0.000,+0.043], MRR -0.013 (ns). 0.8/0.7 lose MRR on qinc (dd8x -0.034, significant).
 - Conclusion: only 0.9 is safe, and only for clients that read `also_in`. Left off by default; opt in with `SearchConfig(dedup=0.9)`.
+
+## B7. Qwen3-Embedding-4B promoted to production (2026-11-02)
+
+Full-corpus re-embed (300,061 chunks, 2560-d, ~13 h at 6.7 chunks/s on the 7900 XTX) compared on the server config (rerank + expansion):
+
+| qset2 test | R@5 | MRR | nDCG10 | p50 |
+|---|---|---|---|---|
+| nomic, strict | 0.820 | 0.711 | 0.724 | 1.3 s |
+| Qwen3-4B, strict | 0.869 (+0.049 [+0.018,+0.081]) | 0.725 (+0.015, ns) | 0.756 (+0.032 [+0.007,+0.058]) | 3.6 s |
+| nomic, lenient | 0.912 | 0.852 | 0.718 | |
+| Qwen3-4B, lenient | 0.947 (+0.035 [+0.011,+0.064]) | 0.883 (+0.031 [+0.003,+0.060]) | 0.757 (+0.039 [+0.015,+0.062]) | |
+
+qinc (72 questions, control): R@5 -0.028, nDCG10 -0.032, CIs include 0. Adoption rule met; latency x2.7 accepted.
+Integration: `store.DIMS=2560`, `embed.MODEL_ID/DOC_PREFIX/DOC_SUFFIX/QUERY_PREFIX` are Qwen3 (`prod_server`, `prod_embedder`; the EOS suffix is appended after truncation),
+`eval/promote_qwen.py` turned `data/exp-qwen3-4b.db` into a live index (content_hash rewritten for the new MODEL_ID). The nomic baseline stays in
+`data/exp-nomic-baseline.db` (compare.py system `nomic`; `live` = current.db); old nomic experiments use `eval/legacy.py`.
+Caveats: 369 chunks (>5500 chars) were embedded in the experiment without the EOS (truncated with it); the canaries now fail on any "semantic search unavailable" warning
+(a stale nomic server on the old port 8098 once made every vector query a silent lexical-only run). `calibration.json` was fitted on nomic candidates: refit with `abstain.py --calibrate`.

@@ -9,7 +9,7 @@ from docsearch import evalrun as E
 from docsearch.embed import Embedder, EmbedServer
 from docsearch.build import embed_text
 from docsearch.search import Searcher, Filters, _match, SearchConfig, parse_query
-from docsearch.server import _Embeddings
+from legacy import NomicQueries as _Embeddings
 
 H = Path(__file__).resolve().parents[1]; R = H / "eval" / "results"; DB = H / "data" / "current.db"
 HF = Path("~/.cache/huggingface/hub").expanduser()
@@ -108,8 +108,8 @@ def main(name):
         emb = _Embeddings(); Q = {t: np.frombuffer(emb(t), dtype=np.float32) for t in qtexts}
         return evaluate(name, rids, src, D, Q)
     if name.startswith("nomic-"):      # nomic with a different document text: nomic-base | nomic-toc | nomic-desc | nomic-both (see doc_text)
-        from docsearch.embed import NOMIC, DOC_PREFIX, QUERY_PREFIX
-        MODELS[name] = (NOMIC, "mean", lambda q: QUERY_PREFIX + q, DOC_PREFIX)
+        from docsearch.embed import NOMIC, NOMIC_DOC_PREFIX, NOMIC_QUERY_PREFIX
+        MODELS[name] = (NOMIC, "mean", lambda q: NOMIC_QUERY_PREFIX + q, NOMIC_DOC_PREFIX)
     gguf, pooling, qfn, dp = MODELS[name]
     class Srv(EmbedServer):
         def _cmd(self, exe):

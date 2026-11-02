@@ -21,10 +21,20 @@ def hf_file(repo: str, filename: str) -> Path:
     return hits[-1] if hits else HF / ("models--" + repo.replace("/", "--")) / "snapshots" / "MISSING" / filename
 
 
+# Legacy model (768-d), kept for the experiments in eval/.
 NOMIC = hf_file("nomic-ai/nomic-embed-text-v1.5-GGUF", "nomic-embed-text-v1.5.Q4_K_M.gguf")
-MODEL_ID = "nomic-embed-text-v1.5.Q4_K_M"
-DOC_PREFIX = "search_document: "
-QUERY_PREFIX = "search_query: "
+NOMIC_MODEL_ID = "nomic-embed-text-v1.5.Q4_K_M"
+NOMIC_DOC_PREFIX = "search_document: "
+NOMIC_QUERY_PREFIX = "search_query: "
+
+# Production model: Qwen3-Embedding-4B Q8_0 (2560-d, last-token pooling). Documents end with <|endoftext|>; queries carry
+# an instruction prefix and the same suffix. MODEL_ID is part of every chunk's content_hash, so changing it re-embeds.
+QWEN_EOS = "<|endoftext|>"
+QWEN_INSTRUCT = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+MODEL_ID = "Qwen3-Embedding-4B-Q8_0"
+DOC_PREFIX = ""
+QUERY_PREFIX = QWEN_INSTRUCT
+DOC_SUFFIX = QWEN_EOS
 MAX_CHARS = 5500           # per-slot context is 2048 tokens; stay well under for code-dense text
 
 
@@ -79,8 +89,8 @@ class EmbedServer:
 
 
 class Embedder:
-    def __init__(self, url: str, workers: int = 2, batch_tokens: int = 24000, batch_items: int = 48):
-        self.url, self.workers = url, workers
+    def __init__(self, url: str, workers: int = 2, batch_tokens: int = 24000, batch_items: int = 48, suffix: str = ""):
+        self.url, self.workers, self.suffix = url, workers, suffix
         self.batch_tokens, self.batch_items = batch_tokens, batch_items
         self.http = httpx.Client(timeout=600)
         self.truncated = 0
@@ -111,10 +121,10 @@ class Embedder:
                         self.truncated += 1
         return [array("f", v).tobytes() for v in vecs]
 
-    def embed(self, texts: list[str], prefix: str = DOC_PREFIX, est_tokens: list[int] | None = None) -> list[bytes]:
+    def embed(self, texts: list[str], prefix: str = "", est_tokens: list[int] | None = None) -> list[bytes]:
         """Embed `texts` (order preserved). Length-sorted, token-budgeted batches across a few workers."""
-        texts = [prefix + (t if len(t) <= MAX_CHARS else t[:MAX_CHARS]) for t in texts]
-        self.truncated += sum(1 for t in texts if len(t) > MAX_CHARS + len(prefix))
+        self.truncated += sum(1 for t in texts if len(t) > MAX_CHARS)
+        texts = [prefix + (t if len(t) <= MAX_CHARS else t[:MAX_CHARS]) + self.suffix for t in texts]   # suffix survives truncation
         est = est_tokens or [len(t) // 3 for t in texts]
         order = sorted(range(len(texts)), key=lambda i: est[i])
         batches, cur, n = [], [], 0
@@ -155,10 +165,6 @@ class BgeServer(EmbedServer):
         return super().__enter__()
 
 
-QWEN_EOS = "<|endoftext|>"     # Qwen3-Embedding pools the last token; documents and queries both end with this
-QWEN_INSTRUCT = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
-
-
 def qwen_query(q: str) -> str:
     return QWEN_INSTRUCT + q + QWEN_EOS
 
@@ -167,9 +173,12 @@ class QwenServer(EmbedServer):
     """Qwen3-Embedding Q8 server for the embedding experiments: last-token pooling, port 8094 (refuses to reuse an unknown server)."""
     PORT = 8094
 
-    def __init__(self, size: str = "4b", device: str | None = None, ctx: int = 8192, parallel: int = 2):
+    def __init__(self, size: str = "4b", device: str | None = None, ctx: int = 8192, parallel: int = 2,
+                 port: int | None = None, exclusive: bool = True):
+        """exclusive=False (production: build, canary, MCP) reuses a server already answering on `port`."""
         model = hf_file(f"Qwen/Qwen3-Embedding-{size.upper()}-GGUF", f"Qwen3-Embedding-{size.upper()}-Q8_0.gguf")
-        super().__init__(model, device or os.environ.get("QWEN_DEVICE", "Vulkan0"), self.PORT, ctx=ctx, parallel=parallel)
+        super().__init__(model, device or os.environ.get("QWEN_DEVICE", "Vulkan0"), port or self.PORT, ctx=ctx, parallel=parallel)
+        self.exclusive = exclusive
 
     def _cmd(self, exe: str) -> list[str]:
         c = super()._cmd(exe)
@@ -177,6 +186,17 @@ class QwenServer(EmbedServer):
         return c
 
     def __enter__(self) -> "QwenServer":
-        if self._up():
-            raise RuntimeError(f"port {self.PORT} already answers: refusing to reuse an unknown server")
+        if self.exclusive and self._up():
+            raise RuntimeError(f"port {self.port} already answers: refusing to reuse an unknown server")
         return super().__enter__()
+
+
+def prod_server(port: int = 8103, ctx: int = 8192, parallel: int = 2) -> QwenServer:
+    """The production embedding server (build/update 8103, canary and MCP queries 8102; the old nomic servers used 8098/8099); reuses one already answering."""
+    return QwenServer("4b", os.environ.get("DOCSEARCH_EMBED_DEVICE", "Vulkan0"), ctx=ctx, parallel=parallel,
+                      port=int(os.environ.get("DOCSEARCH_EMBED_PORT", port)), exclusive=False)
+
+
+def prod_embedder(url: str) -> Embedder:
+    """Client matching `prod_server`: documents get DOC_PREFIX + text + DOC_SUFFIX, queries embed(q, QUERY_PREFIX)."""
+    return Embedder(url, workers=1, batch_tokens=3500, batch_items=16, suffix=DOC_SUFFIX)

@@ -10,7 +10,7 @@ from pathlib import Path
 import sqlite_vec
 
 SCHEMA_VERSION = "1"
-DIMS = 768
+DIMS = 2560            # Qwen3-Embedding-4B
 
 SCHEMA = f"""
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);

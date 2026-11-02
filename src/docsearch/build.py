@@ -12,7 +12,7 @@ from pathlib import Path
 from . import store
 from .chunker import Chunk
 from .config import Config, load_config
-from .embed import DOC_PREFIX, MODEL_ID, Embedder, EmbedServer
+from .embed import DOC_PREFIX, MODEL_ID, prod_embedder, prod_server
 from .pipeline import PageResult, Processor
 from .sync import blob_hashes, head, last_commit_dates, list_pages
 from .toc import build_toc
@@ -154,8 +154,8 @@ def phase_embed(db: sqlite3.Connection, prev: Path | None, group: int = 1500, re
     if embedder is not None:                      # injected backend (tests, alternative servers): no restarts
         _embed_loop(db, todo, embedder, None, group, restart_every, 1.0)
         return
-    with EmbedServer() as srv:
-        emb = Embedder(srv.url)
+    with prod_server() as srv:
+        emb = prod_embedder(srv.url)
         ratio = calibrate(db, emb)
         _embed_loop(db, todo, emb, srv, group, restart_every, ratio)
 
@@ -171,7 +171,7 @@ def _embed_loop(db, todo, emb, srv, group, restart_every, ratio) -> None:
         if srv and i and (i // group) % restart_every == 0:       # every ~15k chunks
             truncated += emb.truncated
             srv.restart()
-            emb = Embedder(srv.url)
+            emb = prod_embedder(srv.url)
             log("restarted embedding server")
         part = todo[i : i + group]
         texts = [embed_text(r[3], r[4], r[5] or "", r[6]) for r in part]

@@ -108,3 +108,9 @@ from `LLM/scope/` (see its README). Never `pkill`/`pgrep -f`: they match their o
 by decision of the user the network is fully trusted. Intended address: the `wg_k8s` interface, 100.100.121.1 (`ip -br addr show wg_k8s`). Tested with the `mcp` client (6 tools, `search_docs` answers).
 `deploy/docsearch-mcp.service` is a user unit for it, installed by the user: `cp deploy/docsearch-mcp.service ~/.config/systemd/user/ && systemctl --user daemon-reload && systemctl --user enable --now docsearch-mcp`.
 Client: `claude mcp add --transport http docsearch http://100.100.121.1:8765/mcp`. Linger is on, so a user unit also runs while vivo is logged off.
+
+## Embedding model: Qwen3-Embedding-4B (2026-11-02)
+Production vectors are Qwen3-Embedding-4B Q8_0 (2560-d, last-token pooling, query instruction prefix, `<|endoftext|>` on documents and queries); see `embed.py`
+(`MODEL_ID`, `prod_server`, `prod_embedder`) and `eval/README.md` B7. `store.DIMS=2560`. Query/build servers use ports 8102/8103 (HF cache needs `Qwen/Qwen3-Embedding-4B-GGUF`).
+The MCP service must be restarted after this change (`systemctl --user restart docsearch-mcp`); a stale nomic llama-server on 8098 is ignored. Nightly update re-embeds only changed chunks (hash includes MODEL_ID).
+Rollback: `data/exp-nomic-baseline.db` is the last nomic index; point `current.db` at it AND revert embed.py/store.py to the commit before this one.

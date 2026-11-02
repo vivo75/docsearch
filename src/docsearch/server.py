@@ -14,7 +14,7 @@ from mcp.types import ToolAnnotations
 
 from .calibration import calibrator
 from .config import load_config
-from .embed import QUERY_PREFIX, Embedder, EmbedServer
+from .embed import QUERY_PREFIX, Embedder, QwenServer, prod_embedder, prod_server
 from .expand import ExpandServer, QueryExpander
 from .grep import grep_docs as _grep
 from .rerank import Reranker, RerankServer
@@ -36,7 +36,7 @@ class _Embeddings:
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        self.srv: EmbedServer | None = None
+        self.srv: QwenServer | None = None
         self.emb: Embedder | None = None
         self.failed_at = 0.0
 
@@ -46,11 +46,9 @@ class _Embeddings:
                 if time.time() - self.failed_at < 60:
                     raise RuntimeError("embedding server failed recently")
                 try:
-                    self.srv = EmbedServer(device=os.environ.get("DOCSEARCH_EMBED_DEVICE", "Vulkan0"),
-                                           port=int(os.environ.get("DOCSEARCH_EMBED_PORT", "8098")),
-                                           ctx=4096, parallel=2)
+                    self.srv = prod_server(port=8102, ctx=4096, parallel=2)
                     self.srv.__enter__()
-                    self.emb = Embedder(self.srv.url, workers=1)
+                    self.emb = prod_embedder(self.srv.url)
                     atexit.register(lambda: self.srv and self.srv.__exit__())
                 except Exception:
                     self.failed_at = time.time()
