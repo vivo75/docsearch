@@ -144,6 +144,8 @@ def swap(new_db: Path, link: Path, keep: int = 3) -> None:
     for p in olds[keep:]:
         for suffix in ("", "-wal", "-shm"):
             Path(str(p) + suffix).unlink(missing_ok=True)
+        for suffix in (".vec.npy", ".vec.rids.npy"):          # vecmat cache of the pruned index
+            Path(str(p) + suffix).unlink(missing_ok=True)
 
 
 def stamp() -> str:

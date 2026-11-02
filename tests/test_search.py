@@ -283,3 +283,30 @@ def test_dedup_keeps_best_hit_and_lists_the_copies(idx):
     assert [a.rid for a in out[0].also] == [2] and out[1].also == []
     rendered = s._render(out, 1000)
     assert rendered[0]["also_in_total"] == 1 and rendered[0]["also_in"][0]["url"] == "u2" and "also_in" not in rendered[1]
+
+
+
+def test_vecmat_matches_sqlite_vec_and_falls_back(idx, monkeypatch):
+    from docsearch import vecmat
+    s0 = S(idx)
+    assert s0.vecmat is None                                       # no cache yet -> sqlite-vec
+    assert vecmat.build(idx) == 7
+    s1 = S(idx)
+    assert s1.vecmat is not None
+    for q in ("create storage account", "firewall network rules", "rotate keys powershell"):
+        for f in (Filters(), Filters(service="azure-storage"), Filters(pivot="azure-cli")):
+            assert set(s1._vector(q, f, 10)) == set(s0._vector(q, f, 10)), (q, f)       # same candidates under every filter
+    assert s1._vector("create storage account", Filters(), 2) == s0._vector("create storage account", Filters(), 2)   # same order (no ties at the top)
+    assert s1.search("create storage account")["hits"]             # full pipeline on the matrix path
+    monkeypatch.setenv("DOCSEARCH_VECMAT", "off")
+    assert S(idx).vecmat is None
+    monkeypatch.delenv("DOCSEARCH_VECMAT")
+    vecmat.paths(idx)[0].write_bytes(b"junk")                       # corrupt cache: ignored, not fatal
+    assert S(idx).vecmat is None
+
+
+def test_vecmat_rejects_wrong_dimension(idx):
+    from docsearch import vecmat
+    vecmat.build(idx)
+    with pytest.raises(ValueError):
+        S(idx).vecmat.top(bytes(4 * 768), 3)

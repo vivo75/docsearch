@@ -12,7 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 
-from . import store
+from . import store, vecmat
 from .chunker import count_tokens, truncate_tokens
 from .urls import normalize_url
 
@@ -176,6 +176,7 @@ class Searcher:
         self.db = store.connect(self._real, readonly=True, shared=True)
         self.db.row_factory = sqlite3.Row
         self.meta = store.get_meta(self.db)
+        self.vecmat = vecmat.load(self._real, self.db)       # None -> sqlite-vec scan
         self._services = self._service_keywords()
 
     def _reopen_if_swapped(self) -> None:
@@ -219,6 +220,10 @@ class Searcher:
     def _vector(self, q: str, f: Filters, limit: int) -> list[int]:
         blob = _vec_blob(self.embed_query(q))
         where, params = f.sql()
+        if self.vecmat is not None:
+            allowed = ({r[0] for r in self.db.execute(
+                f"SELECT c.rid FROM chunks c JOIN docs d ON d.doc_id = c.doc_id WHERE {where}", params)} if f.active else None)
+            return self.vecmat.top(blob, limit, allowed)
         flt = (f" AND rowid IN (SELECT c.rid FROM chunks c JOIN docs d ON d.doc_id = c.doc_id WHERE {where})"
                if f.active else "")
         sql = f"SELECT rowid FROM chunks_vec WHERE embedding MATCH ? AND k = ?{flt}"
