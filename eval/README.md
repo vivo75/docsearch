@@ -160,3 +160,8 @@ Takeaway: `confidence` is already a usable abstention signal; a better reranker 
 Shipped (2026-11-02): search results now carry `rerank_max` (raw best rerank score) and `confidence` = logistic(a * rerank_max + b), a=0.689, b=0.805 for bge-v2-m3-q8, fitted on all 575 scored qset2 questions
 (522 answerable, 53 unanswerable). Held-out check (fit on dev, 281 test questions): Brier .060 vs .089 for "always answerable"; predicted .00-.50 -> observed answerable .38 (n=16),
 .50-.80 -> .73 (22), .80-.95 -> .85 (61), .95-1 -> 1.00 (182). Refit whenever the reranker, embedding model or corpus changes much.
+
+## Miss analysis vs structure (2026-11-02, for the STAIR evaluation)
+`eval/miss_analysis.py`: server config (bge rerank + expansion), qset2 dev+test strict answerable, 566 questions: R@5 hits 468 (82.7%), misses 98 = 27 with the gold page at rank 6-10 + 71 beyond rank 10 / absent.
+Top-1 page of a miss relative to the gold page: same TOC parent 2, same TOC file other branch 26, same directory 1, elsewhere 69. 458/566 gold pages have a TOC position (108 do not: CLI/PowerShell references, API specs, support articles, ...).
+So the "right neighbourhood, wrong sibling" case that a section-level retriever would fix is ~28% of the misses (5% of questions); most misses are recall misses in another area.
