@@ -39,7 +39,10 @@ def main(argv: list[str] | None = None) -> None:
     q.add_argument("--pivot"); q.add_argument("--tab"); q.add_argument("--limit", type=int, default=8)
     q.add_argument("--no-semantic", action="store_true")
     q.add_argument("--no-rerank", action="store_true")
-    sub.add_parser("serve", help="run the MCP server on stdio")
+    sv = sub.add_parser("serve", help="run the MCP server (stdio, or streamable HTTP with --http)")
+    sv.add_argument("--http", action="store_true", help="serve streamable HTTP at http://HOST:PORT/mcp instead of stdio (no authentication!)")
+    sv.add_argument("--host", default="127.0.0.1", help="address to bind with --http (use the WireGuard interface address, never 0.0.0.0 on an untrusted network)")
+    sv.add_argument("--port", type=int, default=8765)
     s = sub.add_parser("status", help="show metadata of the current index")
     s.add_argument("--db", type=Path, default=HERE / "data" / "current.db")
     a = ap.parse_args(argv)
@@ -62,7 +65,7 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(1 if r["mismatches"] else 0)
     elif a.cmd == "serve":
         from .server import main as serve
-        serve()
+        serve((a.host, a.port) if a.http else None)
     elif a.cmd == "search":
         import json
         from .config import load_config

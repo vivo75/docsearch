@@ -102,3 +102,9 @@ Old: RX 6600 8 GB (Vulkan), ~224 GB/s. New: **RX 7900 XTX 24 GB (gfx1100)**, ~96
 ## Running long jobs (2026-10-31)
 Use `../scope/scoperun.sh <slug> <log> <cmd...>` (systemd user scope `ds-<slug>`) and `scopestatus/scopewait/scopestop/scopels.sh`
 from `LLM/scope/` (see its README). Never `pkill`/`pgrep -f`: they match their own command line.
+
+## MCP over the network (2026-11-02)
+`docsearch serve --http --host <addr> --port 8765` serves streamable HTTP at `http://<addr>:8765/mcp` (default stdio unchanged). **No authentication, no Host/DNS-rebinding check, no firewall**:
+by decision of the user the network is fully trusted. Intended address: the `wg_k8s` interface, 100.100.121.1 (`ip -br addr show wg_k8s`). Tested with the `mcp` client (6 tools, `search_docs` answers).
+`deploy/docsearch-mcp.service` is a user unit for it, NOT installed (installing was not requested): `cp deploy/docsearch-mcp.service ~/.config/systemd/user/ && systemctl --user daemon-reload && systemctl --user enable --now docsearch-mcp`.
+Client: `claude mcp add --transport http docsearch http://100.100.121.1:8765/mcp`. Linger is off, so a user unit only runs while vivo is logged in.

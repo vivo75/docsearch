@@ -1,0 +1,16 @@
+# MCP server over streamable HTTP on the wg_k8s address (trusted network, no auth, no firewall by design).
+# Install (user unit): cp deploy/docsearch-mcp.service ~/.config/systemd/user/ && systemctl --user daemon-reload && systemctl --user enable --now docsearch-mcp
+# Client: claude mcp add --transport http docsearch http://100.100.121.1:8765/mcp
+# Edit WorkingDirectory/ExecStart if the project moves; the address is wg_k8s's (ip -br addr show wg_k8s).
+[Unit]
+Description=docsearch MCP server (streamable HTTP on wg_k8s)
+After=network-online.target
+
+[Service]
+WorkingDirectory=/mnt/D500G/space/Microsoft/LLM/docsearch
+ExecStart=/usr/bin/env uv run docsearch serve --http --host 100.100.121.1 --port 8765
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

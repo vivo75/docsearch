@@ -229,5 +229,13 @@ def make_server(db_path: Path | None = None, config: str | None = None) -> MCPSe
     return mcp
 
 
-def main() -> None:
-    make_server().run()
+def main(http: tuple[str, int] | None = None) -> None:
+    """stdio by default; http=(host, port) serves streamable HTTP at /mcp for clients on other machines.
+    No authentication and no DNS-rebinding/Host check: bind it to an address on a network you trust (e.g. a WireGuard interface)."""
+    srv = make_server()
+    if http is None:
+        srv.run()
+    else:
+        from mcp.server.transport_security import TransportSecuritySettings
+        srv.run("streamable-http", host=http[0], port=http[1],
+                transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False))
