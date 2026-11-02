@@ -149,3 +149,10 @@ Strict R@1/R@5/MRR | lenient R@5/MRR: **nomic** (768-d) .548/.802/.662 | .915/.8
 **Qwen3-Embedding-4B Q8** (2560-d) .719/.940/.814 | .989/.934 — Qwen3-Embedding-8B Q8 (4096-d) .730/.947/.820 | .991/.944.
 Qwen3 needs `<|endoftext|>` appended to documents and queries (last-token pooling) plus the "Instruct: ... Query: " query prefix; the earlier 0.6B rejection was without EOS.
 4B ~6 chunks/s (8B ~3.5/s), ROCm0 = Vulkan0 speed. Slice only: the full-pipeline test uses `data/exp-qwen3-4b.db` (`eval/qwen_full.py embed`, ~13 h) and `compare.py --systems nomic/server,q4/server`.
+
+## Phase B4: abstention signals on qset2 (2026-11-02)
+`eval/abstain.py` (cached rerank scores only, no GPU rerank): AUC of "answerable vs unanswerable" for signals derived from the top-10 rerank scores.
+**bge (current)**: best single signal = max score (`confidence`): AUC dev .894 / test .914 (28 / 25 unanswerable); margin .64/.63, top-3 mean .86/.88, max/sum .71/.69; a logistic
+combination fitted on dev adds nothing (test .912). Thresholds transfer dev -> test: keeping 95% / 90% / 80% of answerable on dev gives test 96/91/78% kept and 44/68/92% of unanswerable abstained.
+Test only (no dev scores cached): Qwen3-8B .944, Qwen3-4B .928, **Prism-4B .967** (top-3 mean .959). With 25 unanswerable questions an AUC difference below ~.05 is not distinguishable.
+Takeaway: `confidence` is already a usable abstention signal; a better reranker moves it only slightly. (The "logit" column is meaningless for bge: its scores are not probabilities.)
