@@ -1,4 +1,4 @@
-"""python eval/embed_slice.py {pool|nomic|qwen3|bge-m3}
+"""python eval/embed_slice.py {pool|nomic|qwen3|bge-m3|qwen3-4b|qwen3-8b}   (QSET=qset2 by default; QSET=v1 = the original 58 questions)
 Slice test for a candidate embedding model: pool = union of nomic-vector and BM25 top-K chunks per question + all chunks of the gold pages
 + random distractors; each model embeds only the pool and ranks it by cosine for every question (page-level metrics, strict and lenient)."""
 import json, random, sqlite3, sys, time
@@ -13,13 +13,25 @@ from docsearch.server import _Embeddings
 
 H = Path(__file__).resolve().parents[1]; R = H / "eval" / "results"; DB = H / "data" / "current.db"
 HF = Path("~/.cache/huggingface/hub").expanduser()
+import os
+QS = os.environ.get("QSET", "qset2")
+SLICE = R / f"slice-{QS}"; SLICE.mkdir(exist_ok=True)   # pool and vectors are per question set: rids change when the index is updated
+EOS = "<|endoftext|>"   # Qwen3-Embedding pools the last token and was trained with this appended; llama.cpp may not add it
 MODELS = {  # name: (gguf, pooling, query_fn, doc_prefix)
     "qwen3": (next(HF.glob("models--Qwen--Qwen3-Embedding-0.6B-GGUF/snapshots/*/*Q8_0.gguf")), "last",
               lambda q: "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: " + q, ""),
+    "qwen3-4b": (next(HF.glob("models--Qwen--Qwen3-Embedding-4B-GGUF/snapshots/*/*Q8_0.gguf"), None), "last",
+                 lambda q: "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: " + q + EOS, ""),
+    "qwen3-8b": (next(HF.glob("models--Qwen--Qwen3-Embedding-8B-GGUF/snapshots/*/*Q8_0.gguf"), None), "last",
+                 lambda q: "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: " + q + EOS, ""),
     "bge-m3": (next(HF.glob("models--ggml-org--bge-m3-Q8_0-GGUF/snapshots/*/*.gguf")), "cls", lambda q: q, ""),
 }
-K, DISTRACT = 40, 2500
-strict, lenient = E.load_questions(), E.load_questions(lenient=True)
+K, DISTRACT = int(os.environ.get("K", 20)), 2500
+if QS == "v1":
+    strict, lenient = E.load_questions(), E.load_questions(lenient=True)
+else:
+    sys.path.insert(0, str(H / "eval")); import compare
+    strict, lenient = compare.load(QS, "all")
 
 
 def pool():
@@ -32,7 +44,7 @@ def pool():
             rids |= {r[0] for r in s.db.execute("SELECT c.rid FROM chunks c JOIN docs d USING(doc_id) WHERE d.repo=? AND d.path=?", (repo, path))}
     allr = [r[0] for r in s.db.execute("SELECT rid FROM chunks")]
     random.Random(7).shuffle(allr); rids |= set(allr[:DISTRACT])
-    (R / "slice_pool.json").write_text(json.dumps(sorted(rids))); print("pool", len(rids))
+    (SLICE / "pool.json").write_text(json.dumps(sorted(rids))); print("pool", len(rids))
 
 
 def rows(rids):
@@ -57,7 +69,7 @@ def evaluate(name, rids, src, D, Q):
 
 def main(name):
     if name == "pool": return pool()
-    rids = json.loads((R / "slice_pool.json").read_text()); data = rows(rids); src = [r[1] for r in data]
+    rids = json.loads((SLICE / "pool.json").read_text()); data = rows(rids); src = [r[1] for r in data]
     qtexts = [q["question"] for q in lenient]
     if name == "nomic":
         db = sqlite3.connect(DB); db.enable_load_extension(True)
@@ -73,10 +85,10 @@ def main(name):
     t0 = time.time()
     with Srv(gguf, "Vulkan0", 8095, ctx=8192, parallel=2) as srv:
         e = Embedder(srv.url, workers=1, batch_tokens=3500, batch_items=16)
-        cache = R / f"slice_{name}.npy"
+        cache = SLICE / f"{name}.npy"
         if cache.exists(): D = np.load(cache)
         else:
-            texts = [embed_text(r[2], r[3], r[4] or "", r[5]) for r in data]
+            texts = [embed_text(r[2], r[3], r[4] or "", r[5]) + (EOS if name in ("qwen3-4b", "qwen3-8b") else "") for r in data]
             vecs = []
             for i in range(0, len(texts), 1000):
                 vecs += e.embed(texts[i:i + 1000], dp); print(f"  {name}: {len(vecs)}/{len(texts)} {time.time()-t0:.0f}s", flush=True)

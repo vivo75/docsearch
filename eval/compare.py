@@ -22,7 +22,7 @@ import numpy as np
 
 from docsearch import evalrun as E
 from docsearch.config import load_config
-from docsearch.embed import BgeServer, Embedder
+from docsearch.embed import BgeServer, Embedder, QwenServer, qwen_query
 from docsearch.expand import QueryExpander
 from docsearch.rerank import Reranker, RerankServer
 from docsearch.search import SearchConfig
@@ -36,7 +36,9 @@ INDEXES = {"nomic": (H / "data" / "current.db", "nomic"), "c1": (H / "data" / "i
            # pre = live index before the reconstructed-include heal (2026-11-01 16:09); nomic = after it
            "pre": (H / "data" / "index-20261101-160916351.db", "nomic"),
            # h1 = after the first 9 reconstructed includes, before the terraform family (2026-11-01 19:52)
-           "h1": (H / "data" / "index-20261101-195217309.db", "nomic")}
+           "h1": (H / "data" / "index-20261101-195217309.db", "nomic"),
+           # q4/q8 = full-corpus Qwen3-Embedding experiments (eval/qwen_full.py embed): a copy of the live index with 2560-d / 4096-d vectors
+           "q4": (H / "data" / "exp-qwen3-4b.db", "qwen4b"), "q8": (H / "data" / "exp-qwen3-8b.db", "qwen8b")}
 CONFIGS = {"bm25": (replace(D, vector=0), False), "vector": (replace(D, bm25=0, phrase=0, ident=0), False), "hybrid": (D, False),
            "rerank": (SERVER_CONFIG, True), "expand": (replace(D, expand_vec=1.0), True),
            "server": (replace(SERVER_CONFIG, expand_vec=1.0), True)}       # server = what `docsearch serve` runs
@@ -108,6 +110,11 @@ def main():
     if "bge" in kinds:
         with BgeServer() as bs:
             e = Embedder(bs.url, workers=1); memo["bge"] = {t: e.embed([t], "")[0] for t in {s for q in texts for s in (q, q + " " + ex.cache.get(q, ""))}}
+    for kind in ("qwen4b", "qwen8b"):
+        if kind in kinds:
+            with QwenServer(kind[4:]) as qs:
+                e = Embedder(qs.url, workers=1)
+                memo[kind] = {t: e.embed([qwen_query(t)], "")[0] for t in {s for q in texts for s in (q, q + " " + ex.cache.get(q, ""))}}
     cfg = load_config(H / "repos.toml")
 
     def evaluate(todo, rr):

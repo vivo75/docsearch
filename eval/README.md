@@ -142,3 +142,10 @@ Prism-Qwen3.5-Reranker-4B Q8 (self-converted) .823 / .719 / .964 / 5.3 s. All st
 Prism MRR +.017 [+.002,+.034], nDCG10 +.011 [+.003,+.020] (R@5 unchanged), strict not significant. **Not adopted** (bar: both strict and lenient, no AUC regression; latency 4x).
 Prism worth revisiting for abstention (AUC .912 -> .964, few unanswerable questions in test). Prism GGUF: no public file exists; converted with llama.cpp `convert_hf_to_gguf.py`
 (pre-tokenizer hash unknown -> forced `qwen35`, tokenization checked identical), scored by `Reranker._prism` (p(yes)/(p(yes)+p(no)) via /completion); model in `data/models/prism4b/` (git-ignored).
+
+## Phase B2: embedding slice test on qset2 (2026-11-02)
+`QSET=qset2 K=8 eval/embed_slice.py {pool|nomic|bge-m3|qwen3-4b|qwen3-8b}`: pool = 39,715 chunks (nomic/BM25 top-8 per question + every chunk of the gold pages + 2,500 random), vector-only ranking, page level, all qset2 questions.
+Strict R@1/R@5/MRR | lenient R@5/MRR: **nomic** (768-d) .548/.802/.662 | .915/.807 — bge-m3 (1024-d) .592/.869/.712 | .972/.871 —
+**Qwen3-Embedding-4B Q8** (2560-d) .719/.940/.814 | .989/.934 — Qwen3-Embedding-8B Q8 (4096-d) .730/.947/.820 | .991/.944.
+Qwen3 needs `<|endoftext|>` appended to documents and queries (last-token pooling) plus the "Instruct: ... Query: " query prefix; the earlier 0.6B rejection was without EOS.
+4B ~6 chunks/s (8B ~3.5/s), ROCm0 = Vulkan0 speed. Slice only: the full-pipeline test uses `data/exp-qwen3-4b.db` (`eval/qwen_full.py embed`, ~13 h) and `compare.py --systems nomic/server,q4/server`.

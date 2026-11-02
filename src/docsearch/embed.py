@@ -153,3 +153,30 @@ class BgeServer(EmbedServer):
         if self._up():
             raise RuntimeError(f"port {self.PORT} already answers: refusing to reuse an unknown server")
         return super().__enter__()
+
+
+QWEN_EOS = "<|endoftext|>"     # Qwen3-Embedding pools the last token; documents and queries both end with this
+QWEN_INSTRUCT = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+
+
+def qwen_query(q: str) -> str:
+    return QWEN_INSTRUCT + q + QWEN_EOS
+
+
+class QwenServer(EmbedServer):
+    """Qwen3-Embedding Q8 server for the embedding experiments: last-token pooling, port 8094 (refuses to reuse an unknown server)."""
+    PORT = 8094
+
+    def __init__(self, size: str = "4b", device: str | None = None, ctx: int = 8192, parallel: int = 2):
+        model = hf_file(f"Qwen/Qwen3-Embedding-{size.upper()}-GGUF", f"Qwen3-Embedding-{size.upper()}-Q8_0.gguf")
+        super().__init__(model, device or os.environ.get("QWEN_DEVICE", "Vulkan0"), self.PORT, ctx=ctx, parallel=parallel)
+
+    def _cmd(self, exe: str) -> list[str]:
+        c = super()._cmd(exe)
+        c[c.index("--pooling") + 1] = "last"; c[c.index("-b") + 1] = "4096"; c[c.index("-ub") + 1] = "4096"
+        return c
+
+    def __enter__(self) -> "QwenServer":
+        if self._up():
+            raise RuntimeError(f"port {self.PORT} already answers: refusing to reuse an unknown server")
+        return super().__enter__()
