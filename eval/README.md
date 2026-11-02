@@ -165,3 +165,9 @@ Shipped (2026-11-02): search results now carry `rerank_max` (raw best rerank sco
 `eval/miss_analysis.py`: server config (bge rerank + expansion), qset2 dev+test strict answerable, 566 questions: R@5 hits 468 (82.7%), misses 98 = 27 with the gold page at rank 6-10 + 71 beyond rank 10 / absent.
 Top-1 page of a miss relative to the gold page: same TOC parent 2, same TOC file other branch 26, same directory 1, elsewhere 69. 458/566 gold pages have a TOC position (108 do not: CLI/PowerShell references, API specs, support articles, ...).
 So the "right neighbourhood, wrong sibling" case that a section-level retriever would fix is ~28% of the misses (5% of questions); most misses are recall misses in another area.
+
+## Phase B5: TOC path / description in the embedded text, nomic slice (2026-11-02)
+`QSET=qset2 eval/embed_slice.py nomic-{base,toc,desc,both}`: same 38,371-chunk pool (rids of the 03:56 index; not comparable with the Qwen3/bge-m3 slice numbers above), vector-only, page level, all qset2 questions.
+Strict R@1/R@5/MRR | lenient R@5/MRR: base (production text) .528/.799/.648 | .912/.800 — +TOC ancestors in the breadcrumb .525/.795/.647 | .913/.795 —
++page description .521/.792/.646 | .908/.801 — both .518/.793/.642 | .919/.802. Every difference is <= .010 (a handful of questions): **no gain from TOC path or description in the vector text**; not adopted.
+Not tested: the TOC path in the lexical (FTS) index, a separate page-level vector, a TOC-branch prior.

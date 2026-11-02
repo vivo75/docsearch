@@ -50,7 +50,36 @@ def pool():
 def rows(rids):
     db = sqlite3.connect(DB)
     q = ",".join(map(str, rids))
-    return db.execute(f"SELECT c.rid, d.repo||'/'||d.path, d.title, c.heading_path, c.context, c.text FROM chunks c JOIN docs d USING(doc_id) WHERE c.rid IN ({q}) ORDER BY c.rid").fetchall()
+    return db.execute(f"SELECT c.rid, d.repo||'/'||d.path, d.title, c.heading_path, c.context, c.text, d.description, d.doc_id FROM chunks c JOIN docs d USING(doc_id) WHERE c.rid IN ({q}) ORDER BY c.rid").fetchall()
+
+
+def toc_prefixes(doc_ids):
+    """doc_id -> TOC ancestors above the page's own entry, e.g. 'Blob Storage › Data protection' (first TOC node of the page, root first)."""
+    db = sqlite3.connect(DB); out = {}
+    for d in doc_ids:
+        row = db.execute("SELECT node_id, parent_id FROM toc WHERE doc_id=? ORDER BY node_id LIMIT 1", (d,)).fetchone()
+        names = []
+        while row and row[1] is not None:
+            row = db.execute("SELECT node_id, parent_id, name FROM toc WHERE node_id=?", (row[1],)).fetchone()
+            if row: names.append(row[2])
+        out[d] = " › ".join(reversed(names))
+    return out
+
+
+_TOC = {}
+
+
+def doc_text(r, name):
+    """The text embedded for a chunk row. nomic-base = what production embeds; toc adds the TOC ancestors to the breadcrumb, desc adds the page description."""
+    kind = name.split("-", 1)[1] if name.startswith("nomic-") else "base"
+    if kind == "base":
+        return embed_text(r[2], r[3], r[4] or "", r[5])
+    if not _TOC:
+        _TOC.update(toc_prefixes({x[7] for x in rows(json.loads((SLICE / "pool.json").read_text()))}))
+    from docsearch.build import SEP
+    bc = SEP.join(p for p in ((_TOC.get(r[7], "") if kind in ("toc", "both") else ""), r[2], r[3]) if p)
+    desc = r[6] if kind in ("desc", "both") and r[6] else ""
+    return "\n\n".join(p for p in (bc, desc, r[4] or "", r[5]) if p)
 
 
 def evaluate(name, rids, src, D, Q):
@@ -78,6 +107,9 @@ def main(name):
         D = np.array([np.frombuffer(vec[r[0]], dtype=np.float32) for r in data])
         emb = _Embeddings(); Q = {t: np.frombuffer(emb(t), dtype=np.float32) for t in qtexts}
         return evaluate(name, rids, src, D, Q)
+    if name.startswith("nomic-"):      # nomic with a different document text: nomic-base | nomic-toc | nomic-desc | nomic-both (see doc_text)
+        from docsearch.embed import NOMIC, DOC_PREFIX, QUERY_PREFIX
+        MODELS[name] = (NOMIC, "mean", lambda q: QUERY_PREFIX + q, DOC_PREFIX)
     gguf, pooling, qfn, dp = MODELS[name]
     class Srv(EmbedServer):
         def _cmd(self, exe):
@@ -88,7 +120,7 @@ def main(name):
         cache = SLICE / f"{name}.npy"
         if cache.exists(): D = np.load(cache)
         else:
-            texts = [embed_text(r[2], r[3], r[4] or "", r[5]) + (EOS if name in ("qwen3-4b", "qwen3-8b") else "") for r in data]
+            texts = [doc_text(r, name) + (EOS if name in ("qwen3-4b", "qwen3-8b") else "") for r in data]
             vecs = []
             for i in range(0, len(texts), 1000):
                 vecs += e.embed(texts[i:i + 1000], dp); print(f"  {name}: {len(vecs)}/{len(texts)} {time.time()-t0:.0f}s", flush=True)
