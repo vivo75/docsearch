@@ -18,6 +18,7 @@ from docsearch.server import _Embeddings as _Prod
 from legacy import NomicQueries
 
 ap = argparse.ArgumentParser(); ap.add_argument("--rerankers", default="bge-v2-m3-q8,qwen3-8b-q8,qwen3-4b-q4,prism-4b-q8"); ap.add_argument("--index", default="live")
+ap.add_argument("--live", action="store_true", help="start the reranker server and score cache misses (needed when the index/candidates changed)")
 ap.add_argument("--calibrate", metavar="RERANKER", help="fit the confidence curve for this reranker on all scored qset2 questions and write src/docsearch/calibration.json")
 a = ap.parse_args()
 strict, _ = load("qset2", "all"); lab = {q["id"]: q for q in strict}
@@ -28,8 +29,8 @@ config = CONFIGS["server"][0]
 
 
 class CacheOnly(Reranker):
-    def __init__(self, name):
-        super().__init__("http://127.0.0.1:1", name, cache=H / "eval" / "qset2" / "rerank_cache.jsonl"); self.log = {}; self.miss = 0
+    def __init__(self, name, url="http://127.0.0.1:1"):
+        super().__init__(url, name, cache=H / "eval" / "qset2" / "rerank_cache.jsonl"); self.log = {}; self.miss = 0
     def score(self, q, docs):
         try: s = super().score(q, docs)
         except Exception: self.miss += 1; raise
@@ -42,7 +43,15 @@ def features(s):
 
 
 def run(name):
-    rr = CacheOnly(name); sysm = E.DocsearchSystem(db, memo.__getitem__, cfg, config, name, measure=False, reranker=rr.score, expander=lambda q: ex.cache[q])
+    if a.live:
+        from docsearch.rerank import RerankServer
+        with RerankServer(name) as rs:
+            return _run(name, CacheOnly(name, rs.url))
+    return _run(name, CacheOnly(name))
+
+
+def _run(name, rr):
+    sysm = E.DocsearchSystem(db, memo.__getitem__, cfg, config, name, measure=False, reranker=rr.score, expander=lambda q: ex.cache[q])
     rows = []
     for q in strict:
         try: sysm.run(q)
