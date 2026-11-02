@@ -12,6 +12,7 @@ from pathlib import Path
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
+from .calibration import calibrator
 from .config import load_config
 from .embed import QUERY_PREFIX, Embedder, EmbedServer
 from .expand import ExpandServer, QueryExpander
@@ -157,7 +158,8 @@ def make_server(db_path: Path | None = None, config: str | None = None) -> MCPSe
     base = SERVER_CONFIG if use_rerank else SearchConfig()
     searcher = Searcher(db, _Embeddings(), {r.name: r.weight for r in cfg.repos},
                         replace(base, expand_vec=1.0) if use_expand else base,
-                        _Reranking(rerank_name) if use_rerank else None, _Expansion() if use_expand else None)
+                        _Reranking(rerank_name) if use_rerank else None, _Expansion() if use_expand else None,
+                        calibrate=calibrator(rerank_name) if use_rerank else None)
     mcp = MCPServer("docsearch", instructions=INSTRUCTIONS)
     ro = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 

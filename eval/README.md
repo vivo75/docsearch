@@ -156,3 +156,7 @@ Qwen3 needs `<|endoftext|>` appended to documents and queries (last-token poolin
 combination fitted on dev adds nothing (test .912). Thresholds transfer dev -> test: keeping 95% / 90% / 80% of answerable on dev gives test 96/91/78% kept and 44/68/92% of unanswerable abstained.
 Test only (no dev scores cached): Qwen3-8B .944, Qwen3-4B .928, **Prism-4B .967** (top-3 mean .959). With 25 unanswerable questions an AUC difference below ~.05 is not distinguishable.
 Takeaway: `confidence` is already a usable abstention signal; a better reranker moves it only slightly. (The "logit" column is meaningless for bge: its scores are not probabilities.)
+
+Shipped (2026-11-02): search results now carry `rerank_max` (raw best rerank score) and `confidence` = logistic(a * rerank_max + b), a=0.689, b=0.805 for bge-v2-m3-q8, fitted on all 575 scored qset2 questions
+(522 answerable, 53 unanswerable). Held-out check (fit on dev, 281 test questions): Brier .060 vs .089 for "always answerable"; predicted .00-.50 -> observed answerable .38 (n=16),
+.50-.80 -> .73 (22), .80-.95 -> .85 (61), .95-1 -> 1.00 (182). Refit whenever the reranker, embedding model or corpus changes much.

@@ -182,8 +182,11 @@ def test_rerank_replace_rrf_and_failure_fallback(idx):
     base = S(idx).search("create storage account", limit=5)["hits"]
     assert "powershell" not in base[0]["snippet"].lower()
     r = Searcher(idx, fake_embed, {"azure-rest-api-specs": 0.3}, SearchConfig(rerank_top=10), fake).search("create storage account", limit=5)
-    assert "PowerShell" in r["hits"][0]["snippet"] and r["hits"][0]["rerank_score"] == 5.0 and r["confidence"] == 5.0
+    assert "PowerShell" in r["hits"][0]["snippet"] and r["hits"][0]["rerank_score"] == 5.0 and r["rerank_max"] == 5.0
+    assert "confidence" not in r                                       # no calibration given: the raw score only
     assert calls == [calls[0]] and "rerank_ms" in r["timings"]
+    rc = Searcher(idx, fake_embed, {"azure-rest-api-specs": 0.3}, SearchConfig(rerank_top=10), fake, calibrate=lambda x: 0.25).search("create storage account", limit=5)
+    assert rc["confidence"] == 0.25 and rc["rerank_max"] == 5.0
     r2 = Searcher(idx, fake_embed, {"azure-rest-api-specs": 0.3}, SearchConfig(rerank_top=10, rerank_mode="rrf", rerank_weight=0.2), fake).search("create storage account", limit=5)
     assert r2["hits"][0]["chunk_id"] == base[0]["chunk_id"]            # weak reranker weight keeps the fused leader
 

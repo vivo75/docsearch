@@ -111,10 +111,14 @@ call search_docs '{"query":"enable blob soft delete","pivot":"azure-cli","limit"
   ],
   "warnings": [],
   "timings": {"lexical_ms": 99, "expand_ms": 276, "vector_ms": 5539, "rerank_ms": 487, "total_ms": 6402},
-  "confidence": 8.1267
+  "rerank_max": 8.1267,
+  "confidence": 0.9998
 }
 ```
-`confidence` is the best cross-encoder score among the re-ranked chunks: a low value means "probably nothing in the corpus answers this".
+`confidence` (0..1) estimates whether the corpus answers the question at all: low means "probably nothing here does", so say so instead of citing the top hit.
+It is the best cross-encoder score (`rerank_max`, a raw number whose scale depends on the model) mapped through a logistic curve fitted on the eval questions
+(`src/docsearch/calibration.json`, refit with `eval/abstain.py --calibrate <reranker>`). Read it as a ranking of "how likely", not as an exact probability:
+about 10% of the questions it was fitted on have no answer. Both fields are absent when the reranker is off; `confidence` is absent if that reranker was never calibrated.
 `warnings` says when a part of the pipeline was unavailable (e.g. "semantic search unavailable; results are lexical only").
 
 ### `grep_docs`

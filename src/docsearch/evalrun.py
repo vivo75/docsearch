@@ -66,7 +66,7 @@ class DocsearchSystem:
             if h["source"] not in seen:
                 seen.add(h["source"]); ranked.append((h["source"], h))
         return {"ranked": [s for s, _ in ranked], "hits": [h for _, h in ranked],
-                "top_score": wide.get("confidence", wide["hits"][0]["score"] if wide["hits"] else 0.0),
+                "top_score": wide.get("rerank_max", wide["hits"][0]["score"] if wide["hits"] else 0.0),
                 "tokens": tokens, "latency_ms": latency}
 
 

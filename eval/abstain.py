@@ -12,10 +12,12 @@ from compare import H, INDEXES, CONFIGS, load, auc
 from docsearch import evalrun as E
 from docsearch.config import load_config
 from docsearch.expand import QueryExpander
+from docsearch.calibration import PATH as CAL_PATH, fit, sigmoid
 from docsearch.rerank import Reranker
 from docsearch.server import _Embeddings
 
 ap = argparse.ArgumentParser(); ap.add_argument("--rerankers", default="bge-v2-m3-q8,qwen3-8b-q8,qwen3-4b-q4,prism-4b-q8"); ap.add_argument("--index", default="nomic")
+ap.add_argument("--calibrate", metavar="RERANKER", help="fit the confidence curve for this reranker on all scored qset2 questions and write src/docsearch/calibration.json")
 a = ap.parse_args()
 strict, _ = load("qset2", "all"); lab = {q["id"]: q for q in strict}
 ex = QueryExpander("", H / "eval" / "qset2" / "expansions.json"); emb = _Embeddings(); cfg = load_config(H / "repos.toml")
@@ -60,7 +62,7 @@ def logreg(X, y, l2=1.0, it=2000, lr=0.1):
     return w
 
 
-for name in a.rerankers.split(","):
+for name in ([] if a.calibrate else a.rerankers.split(",")):
     rows = run(name); n_by = {sp: sum(r[1] == sp for r in rows) for sp in ("dev", "test")}
     print(f"\n== {name}: scored {len(rows)} questions {n_by}, unanswerable {sum(not r[2] for r in rows)}")
     for sp in ("dev", "test"):
@@ -82,3 +84,20 @@ for name in a.rerankers.split(","):
             for label, fd, ft in (("max", np.array([r[3]["max"] for r in dev]), np.array([r[3]["max"] for r in test])), ("logistic", sd, st)):
                 th = np.quantile(fd[yd], 1 - keep)            # abstain below th: keeps `keep` of dev answerable
                 print(f"  keep {keep:.0%} answerable on dev [{label:8s}] -> test: answerable kept {(ft[yt] >= th).mean():.0%}, unanswerable correctly abstained {(ft[~yt] < th).mean():.0%}")
+
+
+if a.calibrate:
+    rows = run(a.calibrate)
+    dev = [r for r in rows if r[1] == "dev"]; test = [r for r in rows if r[1] == "test"]
+    if dev and test:       # held-out check: fit on dev, look at test (bins of the predicted probability against the observed answerable rate)
+        ad, bd = fit([r[3]["max"] for r in dev], [r[2] for r in dev])
+        p = np.array([sigmoid(ad * r[3]["max"] + bd) for r in test]); y = np.array([r[2] for r in test], float)
+        print(f"\nheld-out calibration of the dev fit (a={ad:.3f}, b={bd:.3f}) on {len(test)} test questions, Brier {((p - y) ** 2).mean():.4f} (always-answerable: {((1 - y) ** 2).mean():.4f})")
+        for lo, hi in ((0, .5), (.5, .8), (.8, .95), (.95, 1.01)):
+            m = (p >= lo) & (p < hi)
+            if m.any(): print(f"  predicted {lo:.2f}-{min(hi, 1):.2f}: n={int(m.sum()):3d}  mean predicted {p[m].mean():.2f}  observed answerable {y[m].mean():.2f}")
+    a_, b_ = fit([r[3]["max"] for r in rows], [r[2] for r in rows])      # shipped fit: every scored question
+    cal = json.loads(CAL_PATH.read_text()) if CAL_PATH.exists() else {}
+    cal[a.calibrate] = {"a": round(a_, 5), "b": round(b_, 5), "n_answerable": sum(r[2] for r in rows), "n_unanswerable": sum(not r[2] for r in rows),
+                        "fitted": time.strftime("%Y-%m-%d"), "set": "qset2 dev+test", "index": a.index}
+    CAL_PATH.write_text(json.dumps(cal, indent=2) + "\n"); print("wrote", CAL_PATH, cal[a.calibrate])

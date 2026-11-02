@@ -1,0 +1,11 @@
+{
+  "bge-v2-m3-q8": {
+    "a": 0.68879,
+    "b": 0.80496,
+    "n_answerable": 522,
+    "n_unanswerable": 53,
+    "fitted": "2026-11-02",
+    "set": "qset2 dev+test",
+    "index": "nomic"
+  }
+}
