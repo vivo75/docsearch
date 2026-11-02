@@ -194,9 +194,10 @@ Full-corpus re-embed (300,061 chunks, 2560-d, ~13 h at 6.7 chunks/s on the 7900 
 | nomic, lenient | 0.912 | 0.852 | 0.718 | |
 | Qwen3-4B, lenient | 0.947 (+0.035 [+0.011,+0.064]) | 0.883 (+0.031 [+0.003,+0.060]) | 0.757 (+0.039 [+0.015,+0.062]) | |
 
+qset2 dev (strict/lenient): R@5 +0.078 [+0.042,+0.113] / +0.028 [+0.007,+0.053], nDCG10 +0.024 (ns) / +0.023 [+0.001,+0.045], MRR ns; unanswerable AUC 0.883 -> 0.780 (test: 0.909 -> 0.917).
 qinc (72 questions, control): R@5 -0.028, nDCG10 -0.032, CIs include 0. Adoption rule met; latency x2.7 accepted.
 Integration: `store.DIMS=2560`, `embed.MODEL_ID/DOC_PREFIX/DOC_SUFFIX/QUERY_PREFIX` are Qwen3 (`prod_server`, `prod_embedder`; the EOS suffix is appended after truncation),
 `eval/promote_qwen.py` turned `data/exp-qwen3-4b.db` into a live index (content_hash rewritten for the new MODEL_ID). The nomic baseline stays in
 `data/exp-nomic-baseline.db` (compare.py system `nomic`; `live` = current.db); old nomic experiments use `eval/legacy.py`.
 Caveats: 369 chunks (>5500 chars) were embedded in the experiment without the EOS (truncated with it); the canaries now fail on any "semantic search unavailable" warning
-(a stale nomic server on the old port 8098 once made every vector query a silent lexical-only run). `calibration.json` was fitted on nomic candidates: refit with `abstain.py --calibrate`.
+(a stale nomic server on the old port 8098 once made every vector query a silent lexical-only run). `calibration.json` was fitted on nomic candidates. A refit on the Qwen index (`abstain.py --calibrate bge-v2-m3-q8 --index live`) only had cached rerank scores for ~346 questions (23 unanswerable; the dev questions were missing), gave a=0.867, b=0.803 against 0.689, 0.805, and was NOT shipped: to redo it, score the dev questions with the live reranker first.

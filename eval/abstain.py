@@ -14,15 +14,17 @@ from docsearch.config import load_config
 from docsearch.expand import QueryExpander
 from docsearch.calibration import PATH as CAL_PATH, fit, sigmoid
 from docsearch.rerank import Reranker
-from docsearch.server import _Embeddings
+from docsearch.server import _Embeddings as _Prod
+from legacy import NomicQueries
 
-ap = argparse.ArgumentParser(); ap.add_argument("--rerankers", default="bge-v2-m3-q8,qwen3-8b-q8,qwen3-4b-q4,prism-4b-q8"); ap.add_argument("--index", default="nomic")
+ap = argparse.ArgumentParser(); ap.add_argument("--rerankers", default="bge-v2-m3-q8,qwen3-8b-q8,qwen3-4b-q4,prism-4b-q8"); ap.add_argument("--index", default="live")
 ap.add_argument("--calibrate", metavar="RERANKER", help="fit the confidence curve for this reranker on all scored qset2 questions and write src/docsearch/calibration.json")
 a = ap.parse_args()
 strict, _ = load("qset2", "all"); lab = {q["id"]: q for q in strict}
-ex = QueryExpander("", H / "eval" / "qset2" / "expansions.json"); emb = _Embeddings(); cfg = load_config(H / "repos.toml")
+db, kind = INDEXES[a.index]   # nomic = legacy baseline, live/q4 = Qwen3-4B
+ex = QueryExpander("", H / "eval" / "qset2" / "expansions.json"); emb = NomicQueries() if kind == "nomic" else _Prod(); cfg = load_config(H / "repos.toml")
 memo = {t: emb(t) for q in strict for t in (q["question"], q["question"] + " " + ex.cache[q["question"]])}
-db, _ = INDEXES[a.index]; config = CONFIGS["server"][0]
+config = CONFIGS["server"][0]
 
 
 class CacheOnly(Reranker):
