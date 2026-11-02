@@ -52,6 +52,9 @@ def idx(tmp_path):
     db.execute("INSERT INTO redirects VALUES ('https://learn.microsoft.com/azure/storage/old','https://learn.microsoft.com/azure/storage/create')")
     db.execute("INSERT INTO toc(node_id,parent_id,ord,repo,toc_path,name,href,doc_id,url) VALUES (1,NULL,0,'azure-docs','articles/storage/TOC.yml','Storage','x.md',1,'https://learn.microsoft.com/azure/storage/create')")
     db.execute("INSERT INTO toc(node_id,parent_id,ord,repo,toc_path,name,href,doc_id,url) VALUES (2,1,0,'azure-docs','articles/storage/TOC.yml','Child',NULL,NULL,NULL)")
+    for nid, par, o, doc, name, url in ((10, None, 0, None, "Networking section", None), (11, 10, 0, 2, "Networking overview", "https://learn.microsoft.com/azure/storage/net"),
+                                        (12, 10, 1, None, "A folder", None), (13, 10, 2, 3, "Storage spec", "https://learn.microsoft.com/azure/storage/spec")):
+        db.execute("INSERT INTO toc(node_id,parent_id,ord,repo,toc_path,name,href,doc_id,url) VALUES (?,?,?,'azure-docs','articles/zz/TOC.yml',?,NULL,?,?)", (nid, par, o, name, doc, url))
     db.commit(); db.close()
     return tmp_path / "i.db"
 
@@ -237,3 +240,22 @@ def test_query_expansion_bridges_vocabulary_gap_and_degrades_gracefully(idx):
         raise RuntimeError("down")
     r2 = Searcher(idx, fake_embed, {}, cfgx, None, boom).search("make an account", limit=8)
     assert [h["chunk_id"] for h in r2["hits"]] == [h["chunk_id"] for h in plain] and "expansion unavailable" in r2["warnings"][0]
+
+
+def test_hits_carry_their_place_in_the_toc(idx):
+    s = S(idx)
+    hit = lambda q: s.search(q, limit=3)["hits"][0]
+    net = hit("virtual network rules firewall")
+    assert net["source"].endswith("networking.md") or net["title"] == "Networking overview"
+    t = net["toc"]
+    assert t["path"] == "Networking section" and t["node_id"] == 11
+    assert "prev" not in t and t["next"] == {"name": "Storage spec", "url": "https://learn.microsoft.com/azure/storage/spec"}   # the folder (no url) is skipped
+    root = hit("create storage account")
+    assert root["title"] == "Create a storage account" and root["toc"] == {"node_id": 1}              # a root entry: no ancestors, no siblings
+    assert s.read_doc("articles/net/overview.md")["toc"]["path"] == "Networking section"
+    assert s.outline_doc("articles/net/overview.md")["toc"]["node_id"] == 11
+
+
+def test_page_outside_any_toc_has_no_toc_field(idx):
+    s = S(idx)
+    assert s._toc_context(999) is None and s._toc_field(999) == {}

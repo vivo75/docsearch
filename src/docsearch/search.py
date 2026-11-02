@@ -388,7 +388,33 @@ class Searcher:
                 "truncated": snippet != r["text"],
                 "score": round(h.score, 4),
                 **({"rerank_score": round(h.rerank, 4)} if h.rerank is not None else {}),
+                **self._toc_field(r["doc_id"]),
             })
+        return out
+
+    def _toc_field(self, doc_id: int) -> dict:
+        t = self._toc_context(doc_id)
+        return {"toc": t} if t else {}
+
+    def _toc_context(self, doc_id: int) -> dict | None:
+        """Where the page sits in the table of contents: ancestor names (root first), the node id for `browse`, and the neighbouring pages
+        of the same TOC section (previous / next sibling that is a page). None when the page is in no TOC (CLI/PowerShell references, API specs, ...)."""
+        node = self.db.execute("SELECT node_id, parent_id, ord FROM toc WHERE doc_id = ? ORDER BY node_id LIMIT 1", (doc_id,)).fetchone()
+        if node is None:
+            return None
+        path, pid = [], node["parent_id"]
+        while pid is not None and len(path) < 12:
+            up = self.db.execute("SELECT parent_id, name FROM toc WHERE node_id = ?", (pid,)).fetchone()
+            if up is None:
+                break
+            path.append(up["name"]); pid = up["parent_id"]
+        out: dict = {"node_id": node["node_id"], **({"path": " › ".join(reversed(path))} if path else {})}
+        if node["parent_id"] is not None:
+            for key, cmp, order in (("prev", "<", "DESC"), ("next", ">", "ASC")):
+                sib = self.db.execute(f"SELECT name, url FROM toc WHERE parent_id = ? AND ord {cmp} ? AND url IS NOT NULL ORDER BY ord {order} LIMIT 1",
+                                      (node["parent_id"], node["ord"])).fetchone()
+                if sib:
+                    out[key] = {"name": sib["name"], "url": sib["url"]}
         return out
 
     # ---------------------------------------------------------------- navigation
@@ -484,7 +510,7 @@ class Searcher:
                 break
             out.append(block)
             i += 1
-        return {**meta, "text": "\n\n".join(out), "chunks_returned": len(out), "chunks_total": len(rows),
+        return {**meta, **self._toc_field(d["doc_id"]), "text": "\n\n".join(out), "chunks_returned": len(out), "chunks_total": len(rows),
                 "next_offset": i if i < len(rows) else None}
 
     @_locked
@@ -508,7 +534,8 @@ class Searcher:
         def conv(t: dict) -> list[dict]:
             return [{"heading": k, "anchor": v["_a"], "tokens": v["_t"], "variants": sorted(v["_v"]) or None,
                      "children": conv(v["_c"])} for k, v in t.items()]
-        return {"title": d["title"], "url": d["url"], "source": f"{d['repo']}/{d['path']}", "outline": conv(tree)}
+        return {"title": d["title"], "url": d["url"], "source": f"{d['repo']}/{d['path']}",
+                **self._toc_field(d["doc_id"]), "outline": conv(tree)}
 
     @_locked
     def browse(self, node_id: int | None = None, toc_path: str | None = None, repo: str | None = None,

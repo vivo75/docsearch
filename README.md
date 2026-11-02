@@ -103,6 +103,11 @@ call search_docs '{"query":"enable blob soft delete","pivot":"azure-cli","limit"
       "meta": {"service": "azure-blob-storage", "topic": "how-to", "ms_date": "2026-10-02", "last_commit": "…"},
       "variants": ["azure-portal"],
       "snippet": "Blob soft delete is enabled by default when you create a new storage account with the Azure portal. …",
+      "toc": {
+        "node_id": 17822,
+        "path": "Blob Storage › Data protection › Soft delete",
+        "prev": {"name": "Soft delete for blobs", "url": "https://learn.microsoft.com/azure/storage/blobs/soft-delete-blob-overview"}
+      },
       "truncated": true,
       "score": 0.0318,
       "rerank_score": 8.1267
@@ -119,6 +124,9 @@ call search_docs '{"query":"enable blob soft delete","pivot":"azure-cli","limit"
 It is the best cross-encoder score (`rerank_max`, a raw number whose scale depends on the model) mapped through a logistic curve fitted on the eval questions
 (`src/docsearch/calibration.json`, refit with `eval/abstain.py --calibrate <reranker>`). Read it as a ranking of "how likely", not as an exact probability:
 about 10% of the questions it was fitted on have no answer. Both fields are absent when the reranker is off; `confidence` is absent if that reranker was never calibrated.
+`toc` says where the page sits in the table of contents: `path` is the chain of section names above it, `node_id` can be passed to `browse` to list that
+section, `prev`/`next` are the neighbouring pages of the same section (only entries that are pages; absent at the ends). It is also returned by `read_doc` and `outline_doc`,
+and absent for pages that are in no TOC (CLI and PowerShell references, API specs, support articles: about 19% of the pages).
 `warnings` says when a part of the pipeline was unavailable (e.g. "semantic search unavailable; results are lexical only").
 
 ### `grep_docs`
