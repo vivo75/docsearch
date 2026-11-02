@@ -59,6 +59,7 @@ class SearchConfig:
     rerank_weight: float = 1.0          # weight of the reranker in "rrf" mode
     expand_lex: float = 0.0             # weight of an extra BM25 list built from question + LLM-expanded terms (0 = off)
     expand_vec: float = 0.0             # weight of an extra vector list for "question + expansion" (0 = off)
+    dedup: float = 0.0                  # merge hits whose text is a near-duplicate (word-3-gram Jaccard >= this) into the best-ranked one; 0 = off
 
 
 @dataclass
@@ -134,6 +135,24 @@ class Hit:
     row: dict
     variants: list[str] = field(default_factory=list)
     rerank: float | None = None
+    also: list = field(default_factory=list)       # lower-ranked hits with a near-identical text (see SearchConfig.dedup)
+
+
+_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+_NONWORD = re.compile(r"[^0-9a-z]+")
+DEDUP_MIN_WORDS = 8
+
+
+def shingles(text: str) -> frozenset | None:
+    """Word 3-grams of the text with markdown link targets and punctuation removed; None when it is too short to compare reliably."""
+    w = _NONWORD.sub(" ", _LINK.sub(r"\1", text).lower()).split()
+    if len(w) < DEDUP_MIN_WORDS:
+        return None
+    return frozenset(zip(w, w[1:], w[2:]))
+
+
+def near_duplicate(a: frozenset | None, b: frozenset | None, threshold: float) -> bool:
+    return a is not None and b is not None and len(a & b) / len(a | b) >= threshold
 
 
 class Searcher:
@@ -261,6 +280,8 @@ class Searcher:
                 fused[rid] = fused.get(rid, 0.0) + w / (c.rrf_k + i + 1)
         top = sorted(fused, key=fused.get, reverse=True)[:60]
         hits = self._boost(top, fused, pq)
+        if self.cfg.dedup:
+            hits = self._dedup(hits)
         confidence = None
         if self.cfg.rerank_top and self.reranker:
             t = time.perf_counter()
@@ -344,6 +365,19 @@ class Searcher:
             h.score = floor
         return head + tail, max(scores, default=0.0)
 
+    def _dedup(self, hits: list[Hit]) -> list[Hit]:
+        """Keep the best-ranked hit of every group of near-identical texts (the same boilerplate section repeated across pages) and remember
+        the others in `also`, so the reranker sees distinct candidates and the answer still lists where else the text appears."""
+        kept: list[tuple[Hit, frozenset | None]] = []
+        for h in hits:
+            sig = shingles(h.row["text"])
+            home = next((k for k, ks in kept if near_duplicate(sig, ks, self.cfg.dedup)), None)
+            if home is None:
+                kept.append((h, sig))
+            elif h.row["doc_id"] != home.row["doc_id"]:
+                home.also.append(h)
+        return [k for k, _ in kept]
+
     def _collapse(self, hits: list[Hit], f: Filters) -> list[Hit]:
         """One hit per (doc, section) with its variants listed; at most 2 sections per doc."""
         groups: dict[tuple, Hit] = {}
@@ -389,6 +423,8 @@ class Searcher:
                 "score": round(h.score, 4),
                 **({"rerank_score": round(h.rerank, 4)} if h.rerank is not None else {}),
                 **self._toc_field(r["doc_id"]),
+                **({"also_in": [{"title": a.row["title"], "heading": a.row["heading_path"], "url": a.row["url"], "source": f"{a.row['repo']}/{a.row['path']}"}
+                                for a in h.also[:25]], "also_in_total": len(h.also)} if h.also else {}),
             })
         return out
 

@@ -171,3 +171,14 @@ So the "right neighbourhood, wrong sibling" case that a section-level retriever 
 Strict R@1/R@5/MRR | lenient R@5/MRR: base (production text) .528/.799/.648 | .912/.800 — +TOC ancestors in the breadcrumb .525/.795/.647 | .913/.795 —
 +page description .521/.792/.646 | .908/.801 — both .518/.793/.642 | .919/.802. Every difference is <= .010 (a handful of questions): **no gain from TOC path or description in the vector text**; not adopted.
 Not tested: the TOC path in the lexical (FTS) index, a separate page-level vector, a TOC-branch prior.
+
+## B6. Near-duplicate merging (`SearchConfig.dedup`, default off)
+
+Word-3-gram Jaccard on link-stripped text, applied before rerank; the copies are listed in `also_in`.
+Systems `dd9/dd8/dd7` = threshold 0.9/0.8/0.7; the `x` variants also credit gold pages found in `also_in`.
+Results (nomic index, `eval/results/*-compare-qset2-{dev,test}.json`, `*-compare-qinc-all.json`):
+
+- `dup10` (near-copies among the 10 shown): qset2 test 0.38 -> 0.11 (0.9) / 0.00 (0.8, 0.7); qinc 2.82 -> 0.83 / 0.00.
+- Without crediting `also_in` the gold page hidden behind a copy counts as missed: qset2 test R@5 -0.014 [-0.028,-0.004] at 0.9 (fails the "no regression" rule); nDCG10 -0.006..-0.015; qinc nDCG10 -0.05..-0.10.
+- Crediting `also_in` (the `x` variants): no significant change on qset2 dev/test; qinc dd9x nDCG10 +0.021 [0.000,+0.043], MRR -0.013 (ns). 0.8/0.7 lose MRR on qinc (dd8x -0.034, significant).
+- Conclusion: only 0.9 is safe, and only for clients that read `also_in`. Left off by default; opt in with `SearchConfig(dedup=0.9)`.

@@ -20,7 +20,7 @@ from pathlib import Path
 from . import store
 from .chunker import count_tokens
 from .config import Config, load_config
-from .search import Filters, SearchConfig, Searcher, parse_query
+from .search import Filters, SearchConfig, Searcher, parse_query, near_duplicate, shingles
 from .urls import normalize_url
 
 HERE = Path(__file__).resolve().parents[2]
@@ -40,8 +40,8 @@ def load_questions(path: Path = HERE / "eval" / "questions.jsonl", lenient: bool
 # ---------------------------------------------------------------- systems: each returns ranked sources + extras
 class DocsearchSystem:
     def __init__(self, db: Path, embed, cfg: Config, config: SearchConfig, name: str = "docsearch", measure: bool = True,
-                 reranker=None, expander=None):
-        self.name, self.measure = name, measure
+                 reranker=None, expander=None, credit_also_in: bool = False):
+        self.name, self.measure, self.credit = name, measure, credit_also_in
         self.s = Searcher(db, embed, {r.name: r.weight for r in cfg.repos}, config, reranker, expander)
         self.db = self.s.db
 
@@ -65,7 +65,16 @@ class DocsearchSystem:
         for h in wide["hits"]:
             if h["source"] not in seen:
                 seen.add(h["source"]); ranked.append((h["source"], h))
-        return {"ranked": [s for s, _ in ranked], "hits": [h for _, h in ranked],
+        sig = [shingles(h["snippet"]) for _, h in ranked[:10]]
+        dup10 = sum(any(near_duplicate(sig[i], sig[j], 0.8) for j in range(i)) for i in range(len(sig)))   # near-copies among the 10 shown hits
+        sources = [s for s, _ in ranked]
+        if self.credit:                       # the answer lists `also_in` pages: count them as found at the representative's rank
+            sources, seen = [], set()
+            for s, h in ranked:
+                for x in [s, *[a["source"] for a in h.get("also_in", [])]]:
+                    if x not in seen:
+                        seen.add(x); sources.append(x)
+        return {"ranked": sources, "hits": [h for _, h in ranked], "dup10": dup10,
                 "top_score": wide.get("rerank_max", wide["hits"][0]["score"] if wide["hits"] else 0.0),
                 "tokens": tokens, "latency_ms": latency}
 
@@ -164,7 +173,7 @@ def score_question(q: dict, res: dict) -> dict:
     out = {"id": q["id"], "category": q["category"], "rank": r, "latency_ms": res["latency_ms"], "tokens": res["tokens"],
            "r1": bool(r and r <= 1), "r5": bool(r and r <= 5), "r10": bool(r and r <= 10),
            "mrr": 1 / r if r else 0.0, "ndcg10": dcg / ideal if ideal else 0.0,
-           "coverage10": len(gold & set(top10)) / len(gold) if gold else 0.0, "top_score": res["top_score"]}
+           "coverage10": len(gold & set(top10)) / len(gold) if gold else 0.0, "top_score": res["top_score"], "dup10": res.get("dup10", 0)}
     ev = q.get("expected_variant")
     if ev and res["hits"]:
         best = next((h for h in res["hits"] if h["source"] in gold), None)

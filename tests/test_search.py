@@ -259,3 +259,27 @@ def test_hits_carry_their_place_in_the_toc(idx):
 def test_page_outside_any_toc_has_no_toc_field(idx):
     s = S(idx)
     assert s._toc_context(999) is None and s._toc_field(999) == {}
+
+
+def test_shingles_ignore_link_targets_and_short_texts():
+    from docsearch.search import near_duplicate, shingles
+    a = shingles("Run [terraform apply](https://www.terraform.io/docs/commands/apply.html) to apply the execution plan to your cloud infrastructure.")
+    b = shingles("Run [terraform apply](https://developer.hashicorp.com/terraform/cli/commands/apply) to apply the execution plan to your cloud infrastructure.")
+    c = shingles("Run terraform plan to create an execution plan for your cloud infrastructure and save it for later use.")
+    assert near_duplicate(a, b, 0.9) and not near_duplicate(a, c, 0.5)
+    assert shingles("Next steps") is None and not near_duplicate(None, a, 0.1)
+
+
+def test_dedup_keeps_best_hit_and_lists_the_copies(idx):
+    from docsearch.search import Hit, SearchConfig
+    boiler = "Run terraform apply to apply the execution plan to your cloud infrastructure. The example command assumes you previously ran terraform plan."
+    mk = lambda rid, doc, text: Hit(rid, 1.0 / rid, {"doc_id": doc, "text": text, "title": f"t{doc}", "heading_path": "h", "url": f"u{doc}", "repo": "r", "path": f"p{doc}",
+                                              "chunk_id": f"c{rid}", "anchor": "", "ms_service": None, "ms_topic": None, "ms_date": None, "last_commit_date": None})
+    hits = [mk(1, 1, boiler), mk(2, 2, boiler + " "), mk(3, 3, "Something else entirely about virtual network peering and gateway transit settings in hub spoke."),
+            mk(4, 1, boiler), mk(5, 4, "Short")]
+    s = Searcher(idx, fake_embed, {}, SearchConfig(dedup=0.8))
+    out = s._dedup(hits)
+    assert [h.rid for h in out] == [1, 3, 5]                                   # rid 2 merged into 1; rid 4 is the same page: dropped silently
+    assert [a.rid for a in out[0].also] == [2] and out[1].also == []
+    rendered = s._render(out, 1000)
+    assert rendered[0]["also_in_total"] == 1 and rendered[0]["also_in"][0]["url"] == "u2" and "also_in" not in rendered[1]

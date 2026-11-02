@@ -42,6 +42,11 @@ INDEXES = {"nomic": (H / "data" / "current.db", "nomic"), "c1": (H / "data" / "i
 CONFIGS = {"bm25": (replace(D, vector=0), False), "vector": (replace(D, bm25=0, phrase=0, ident=0), False), "hybrid": (D, False),
            "rerank": (SERVER_CONFIG, True), "expand": (replace(D, expand_vec=1.0), True),
            "server": (replace(SERVER_CONFIG, expand_vec=1.0), True)}       # server = what `docsearch serve` runs
+# near-duplicate merging before the rerank (Jaccard thresholds .9/.8/.7); the trailing x credits the pages listed in also_in at the representative's rank
+for _t in (9, 8, 7):
+    CONFIGS[f"dd{_t}"] = (replace(CONFIGS["server"][0], dedup=_t / 10), True)
+    CONFIGS[f"dd{_t}x"] = CONFIGS[f"dd{_t}"]
+CREDIT = {"dd9x", "dd8x", "dd7x"}
 METRICS = ("r1", "r5", "r10", "mrr", "ndcg10")
 
 
@@ -121,7 +126,7 @@ def main():
         out = {}
         for n in todo:
             idx, conf, _ = parse(n); db, kind = INDEXES[idx]; config, needs_rr = CONFIGS[conf]
-            s = E.DocsearchSystem(db, memo[kind].__getitem__, cfg, config, n, measure=True,
+            s = E.DocsearchSystem(db, memo[kind].__getitem__, cfg, config, n, measure=True, credit_also_in=conf in CREDIT,
                                   reranker=(lambda q, d: rr.score(q, d)) if needs_rr else None, expander=lambda q: ex.cache[q])
             rows_s, rows_l, lat = [], [], []
             for q in strict:
@@ -141,15 +146,15 @@ def main():
     rng = np.random.default_rng(20261101); report = {"set": a.set, "split": a.split, "baseline": base, "systems": {}}
     for mode in ("strict", "lenient"):
         print(f"\n== {mode.upper()} ({a.split}) ==")
-        print(f"| {'system':18s} |  R@1  |  R@5  | R@10  |  MRR  |nDCG10 | var.acc| unans.AUC| p50 ms |")
+        print(f"| {'system':18s} |  R@1  |  R@5  | R@10  |  MRR  |nDCG10 | var.acc| unans.AUC| p50 ms | dup10 |")
         for n in names:
             rows = [r for r in res[n][mode] if r["category"] != "unanswerable"]
             m = {k: float(np.mean([r[k] for r in rows])) for k in METRICS}
             va = [r["variant_ok"] for r in rows if "variant_ok" in r]; u = auc(res[n][mode])
-            m.update(variant_acc=float(np.mean(va)) if va else None, unans_auc=u, n=len(rows), p50_ms=res[n]["p50_ms"])
+            m["dup10"] = float(np.mean([r.get("dup10", 0) for r in rows])); m.update(variant_acc=float(np.mean(va)) if va else None, unans_auc=u, n=len(rows), p50_ms=res[n]["p50_ms"])
             report["systems"].setdefault(n, {})[mode] = m
             print(f"| {n:18s} | {m['r1']:.3f} | {m['r5']:.3f} | {m['r10']:.3f} | {m['mrr']:.3f} | {m['ndcg10']:.3f} | "
-                  f"{(m['variant_acc'] or 0):.3f} | {u if u is None else round(u, 3)!s:>8} | {m['p50_ms']:6.0f} |")
+                  f"{(m['variant_acc'] or 0):.3f} | {u if u is None else round(u, 3)!s:>8} | {m['p50_ms']:6.0f} | {m['dup10']:5.2f} |")
         for n in names:
             if n == base: continue
             A = {r["id"]: r for r in res[n][mode] if r["category"] != "unanswerable"}
