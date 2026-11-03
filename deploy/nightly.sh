@@ -9,6 +9,9 @@ flock -n 9 || { echo "$(date -Is) another update is running" >> data/nightly.log
 {
   echo "=== $(date -Is) update"
   uv run docsearch update --pull --canary
+  # report of what the update brought in (git changes per area, summarised by the local Gemma); never fails the run
+  rep="data/reports/changes-$(basename "$(readlink data/current.db)" .db).md"
+  [ -e "$rep" ] || uv run docsearch changes --summarize --out "$rep" > /dev/null || echo "changes report failed"
   # weekly consistency check (Sunday): fresh parse of a random sample must match the index
   if [ "$(date +%u)" = "7" ]; then echo "--- verify"; uv run docsearch verify --sample 300; fi
 } >> data/nightly.log 2>&1

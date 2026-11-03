@@ -199,6 +199,8 @@ def update(cfg_path: str, out_dir: Path, *, do_pull: bool = False, dry_run: bool
                 db.executemany("INSERT OR REPLACE INTO redirects VALUES (?,?)", Redirects.load(repo).map.items())
         for name, rp in plan.repos.items():
             store.set_meta(db, **{f"head:{name}": rp.new})
+            if rp.old:                                    # lets `docsearch changes` report what this update brought in
+                store.set_meta(db, **{f"prev_head:{name}": rp.old})
         stats.update(pages_written=added, chunks_written=chunks, docs_deleted=removed)
         n_toc = build_toc(db, cfg)
         store.set_meta(db, built_at=time.strftime("%Y-%m-%dT%H:%M:%S"), updated_from=src.name, toc_nodes=n_toc)

@@ -30,6 +30,14 @@ def main(argv: list[str] | None = None) -> None:
     u.add_argument("--dry-run", action="store_true", help="show what would change, write nothing")
     u.add_argument("--force", action="store_true", help="publish even if health checks fail")
     u.add_argument("--canary", action="store_true", help="run the canary queries (needs the embedding server) before publishing")
+    c = sub.add_parser("changes", help="report of what changed in the git repos in the last update (optionally summarised by the local Gemma)")
+    c.add_argument("--config", default=str(HERE / "repos.toml"))
+    c.add_argument("--db", type=Path, default=HERE / "data" / "current.db")
+    c.add_argument("--base", type=Path, help="compare against the heads recorded in this older index instead of prev_head:*")
+    c.add_argument("--summarize", action="store_true", help="one-line summaries per area from the local LLM (starts llama-server if needed)")
+    c.add_argument("--lang", default="Italian")
+    c.add_argument("--port", type=int, default=8105, help="llama-server port for the summaries (own instance, never the MCP's)")
+    c.add_argument("--out", type=Path, help="also write the Markdown report here")
     v = sub.add_parser("verify", help="re-process a random sample of pages and compare with the index")
     v.add_argument("--config", default=str(HERE / "repos.toml"))
     v.add_argument("--db", type=Path, default=HERE / "data" / "current.db")
@@ -63,6 +71,10 @@ def main(argv: list[str] | None = None) -> None:
         if a.canary:
             from .canary import run_canaries as canary
         print(json.dumps(update(a.config, a.out, do_pull=a.pull, dry_run=a.dry_run, force=a.force, canary=canary), indent=2))
+    elif a.cmd == "changes":
+        from .changes import run
+        from .config import load_config
+        print(run(load_config(a.config), a.db, a.base, summ=a.summarize, lang=a.lang, port=a.port, out=a.out))
     elif a.cmd == "verify":
         import json
         from .update import verify

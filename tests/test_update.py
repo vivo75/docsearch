@@ -144,3 +144,21 @@ def test_include_that_appears_later_without_a_git_change_is_picked_up(env):
     assert "reconstructed" not in " ".join(emb.texts)                                       # frontmatter stays out of the index
     assert "include_unresolved" not in (new.execute("SELECT flags FROM docs WHERE path='articles/f.md'").fetchone()[0] or "")
     assert update(cfg, out, workers=1, embedder=FakeEmb())["status"] == "up-to-date"
+
+
+def test_changes_report_groups_by_area_and_works_without_llm(env):
+    from docsearch.changes import collect, render
+    from docsearch.config import load_config
+    repo, cfg, out = env
+    old = {k[5:]: v for k, v in store.get_meta(store.connect(out / "current.db", readonly=True)).items() if k.startswith("head:")}
+    (repo / "articles/b.md").write_text(page("Bravo", "Bravo body text about queues and topics."))
+    (repo / "articles/d.md").unlink()
+    commit(repo, "Document queue topics")
+    assert update(cfg, out, workers=1, embedder=FakeEmb())["status"] == "published"
+    db = store.connect(out / "current.db", readonly=True)
+    meta = store.get_meta(db)
+    assert meta["prev_head:r"] == old["r"]
+    new = {k[5:]: v for k, v in meta.items() if k.startswith("head:")}
+    text = render(collect(load_config(cfg), old, new, db), "t")
+    assert "Document queue topics" in text and "Bravo" in text and "-1" in text
+    assert render(collect(load_config(cfg), new, new, db), "t").strip() == "# t"      # nothing changed -> empty report
