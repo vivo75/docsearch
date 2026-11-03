@@ -1,0 +1,6 @@
+{"question": "Why are my resource logs not stored until I create a diagnostic setting?", "style": "natural"}
+{"question": "What are resource log categories and category groups, and what does the audit group contain?", "style": "natural"}
+{"question": "Where should I route resource logs by default, and what other destinations exist?", "style": "natural"}
+{"question": "Which header fields are common to all Azure Monitor resource logs?", "style": "natural"}
+{"question": "resource logs diagnostic setting Azure Policy portal programmatically", "style": "natural"}
+{"question": "How can diagnostic settings be created and maintained besides the Azure portal?", "style": "natural"}

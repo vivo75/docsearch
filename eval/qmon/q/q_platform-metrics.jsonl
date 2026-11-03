@@ -1,0 +1,6 @@
+{"question": "Do I have to configure anything to collect platform metrics for an Azure service?", "style": "natural"}
+{"question": "Which database holds Azure Monitor platform metrics, and why are they good for near real-time alerting?", "style": "natural"}
+{"question": "How do I find out if a platform metric can be exported to a Log Analytics workspace with a diagnostic setting?", "style": "natural"}
+{"question": "platform metrics DS export setting diagnostic setting route to Log Analytics", "style": "natural"}
+{"question": "Are platform metrics defined per namespace?", "style": "natural"}
+{"question": "How do I get the list of all metrics available for every resource in Azure Monitor?", "style": "natural"}

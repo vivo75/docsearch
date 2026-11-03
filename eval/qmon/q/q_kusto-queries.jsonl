@@ -1,0 +1,6 @@
+{"question": "Why does a Log Analytics query opened from a service's Logs menu only return data from that resource type?", "style": "natural"}
+{"question": "Which menu do I open to query logs across several different Azure services?", "style": "natural"}
+{"question": "What is the query scope when I select Logs from the resource menu versus the Azure Monitor menu?", "style": "natural"}
+{"question": "kusto query language analyze monitoring data log analytics store", "style": "keyword"}
+{"question": "Where can I find common queries that work for any Azure service?", "style": "natural"}
+{"question": "log analytics query scope limited to current resource", "style": "keyword"}

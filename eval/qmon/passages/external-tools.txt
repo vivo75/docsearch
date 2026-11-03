@@ -1,0 +1,6 @@
+### Azure Monitor export tools
+You can get data out of Azure Monitor into other tools by using the following methods:
+Metrics: Use the REST API for metrics to extract metric data from the Azure Monitor metrics database. The API supports filter expressions to refine the data retrieved. For more information, see Azure Monitor REST API reference.
+Logs: Use the REST API or the associated client libraries.
+Another option is the workspace data export.
+To get started with the REST API for Azure Monitor, see Azure monitoring REST API walkthrough.

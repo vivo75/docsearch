@@ -1,0 +1,6 @@
+{"question": "Where does Azure Monitor store metric data versus log data?", "style": "natural"}
+{"question": "Is the Azure activity log kept in the same store as Log Analytics data?", "style": "natural"}
+{"question": "How can I send metrics and logs to Azure Storage or a partner system outside Azure Monitor?", "style": "natural"}
+{"question": "azure monitor metrics database logs store separate stores", "style": "keyword"}
+{"question": "Can I route activity log and metric data into the logs store to query it with other logs?", "style": "natural"}
+{"question": "What portal tool lets me run queries against the stored log data?", "style": "natural"}

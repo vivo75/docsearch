@@ -1,0 +1,6 @@
+{"question": "What kinds of alert rules does Azure Monitor support?", "style": "natural"}
+{"question": "What is the common alert schema and why use it?", "style": "natural"}
+{"question": "What is AMBA and which services does it apply to?", "style": "natural"}
+{"question": "metric alerts dynamic thresholds multiple conditions", "style": "keyword"}
+{"question": "Can a single metric rule watch many resources of one type at once?", "style": "natural"}
+{"question": "How are Resource Health and Service Health alerts related to activity log alerts?", "style": "natural"}

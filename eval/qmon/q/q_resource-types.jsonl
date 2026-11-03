@@ -1,0 +1,6 @@
+{"question": "What does it mean that Azure Monitor organizes metrics and logs by namespace?", "style": "natural"}
+{"question": "Is a resource type part of the resource ID in Azure, and what is an example for virtual machines?", "style": "natural"}
+{"question": "Can one Azure service be associated with several resource types for monitoring?", "style": "natural"}
+{"question": "why does each kind of Azure resource expose its own set of metrics and logs", "style": "natural"}
+{"question": "azure monitor resource type namespace metrics logs", "style": "keyword"}
+{"question": "Where do I find the list of Azure services and their resource types?", "style": "natural"}

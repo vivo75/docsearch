@@ -201,3 +201,11 @@ Integration: `store.DIMS=2560`, `embed.MODEL_ID/DOC_PREFIX/DOC_SUFFIX/QUERY_PREF
 `data/exp-nomic-baseline.db` (compare.py system `nomic`; `live` = current.db); old nomic experiments use `eval/legacy.py`.
 Caveats: 369 chunks (>5500 chars) were embedded in the experiment without the EOS (truncated with it); the canaries now fail on any "semantic search unavailable" warning
 (a stale nomic server on the old port 8098 once made every vector query a silent lexical-only run). `calibration.json` was fitted on nomic candidates. `calibration.json` was refitted on the Qwen index (`abstain.py --calibrate bge-v2-m3-q8 --index live --live`, 566 answerable + 58 unanswerable): a=0.769, b=0.553 (nomic: 0.689, 0.805). Held-out check of the dev fit on test: Brier 0.055 vs 0.090 for always-answerable; predicted 0.26/0.68/0.90/0.98 against observed 0.27/0.73/0.88/1.00.
+
+## qmon: Azure Monitor `horz-monitor-*` includes (2026-11-03)
+`eval/qmon_build.py` -> `eval/qmon/` (60 questions, 10 topics x 6, 3 dev / 3 test per topic; written by Sonnet 5.5, no 5-word copy from the passage, checked by script;
+expansions cached by `qinc_expand.py qmon`). Topics = the prose includes shared by 32-35 monitor pages each: resource-types, data-storage, platform-metrics, resource-logs,
+activity-log, analyze-data, external-tools, kusto-queries, alerts, advisor-recommendations. Passages (`eval/qmon/passages/`) are the generic include text read from the rendered
+App Service monitoring page; gold = every page using the include (`unresolved.json`). Skipped on purpose: the `horz-monitor-ref-*` family (tables) and the legal disclaimers.
+**Baseline before recovering these includes** (server config, all 60): Qwen3-4B (live) R@5 .050, R@10 .133, MRR .031; nomic R@5 .133, R@10 .217, MRR .071
+(live - nomic: MRR -.040 [-.074,-.011], R@5 -.083 CI includes 0). Same caveat as qinc: other Monitor pages answer these generic questions without being gold.

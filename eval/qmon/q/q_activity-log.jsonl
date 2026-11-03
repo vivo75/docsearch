@@ -1,0 +1,6 @@
+{"question": "What does the Azure activity log record, for example when I start a virtual machine?", "style": "natural"}
+{"question": "Is the activity log collected automatically, and where can I view it?", "style": "natural"}
+{"question": "How do I forward subscription activity events to a Log Analytics workspace or Event Hubs?", "style": "natural"}
+{"question": "azure activity log subscription-level events separate store", "style": "keyword"}
+{"question": "Does the activity log show operations as seen from outside the resource?", "style": "natural"}
+{"question": "Which destinations are available for routing the activity log besides Log Analytics?", "style": "natural"}
