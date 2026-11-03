@@ -21,6 +21,8 @@ def main(argv: list[str] | None = None) -> None:
     m = sub.add_parser("migrate", help="add the toc table and ISO dates to the current index (copy + atomic swap)")
     m.add_argument("--config", default=str(HERE / "repos.toml"))
     m.add_argument("--out", type=Path, default=HERE / "data")
+    v = sub.add_parser("vecmat", help="(re)build the in-memory vector cache (.npy) of an index; searches use it when present")
+    v.add_argument("--db", type=Path, default=HERE / "data" / "current.db", help="index file (default: what data/current.db points to)")
     u = sub.add_parser("update", help="incremental update from git changes (copy, patch, verify, atomic swap)")
     u.add_argument("--config", default=str(HERE / "repos.toml"))
     u.add_argument("--out", type=Path, default=HERE / "data")
@@ -50,6 +52,10 @@ def main(argv: list[str] | None = None) -> None:
         from .build import build
         build(a.config, a.out, repos=a.repos.split(",") if a.repos else None, limit=a.limit,
               embed=not a.no_embed, resume=a.resume, prev=a.prev, force=a.force)
+    elif a.cmd == "vecmat":
+        from . import vecmat
+        db = a.db.resolve()
+        print(f"{db.name}: {vecmat.build(db)} vectors cached")
     elif a.cmd == "update":
         import json
         from .update import update

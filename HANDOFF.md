@@ -114,3 +114,9 @@ Production vectors are Qwen3-Embedding-4B Q8_0 (2560-d, last-token pooling, quer
 (`MODEL_ID`, `prod_server`, `prod_embedder`) and `eval/README.md` B7. `store.DIMS=2560`. Query/build servers use ports 8102/8103 (HF cache needs `Qwen/Qwen3-Embedding-4B-GGUF`).
 The MCP service must be restarted after this change (`systemctl --user restart docsearch-mcp`); a stale nomic llama-server on 8098 is ignored. Nightly update re-embeds only changed chunks (hash includes MODEL_ID).
 Rollback: `data/exp-nomic-baseline.db` is the last nomic index; point `current.db` at it AND revert embed.py/store.py to the commit before this one.
+
+## In-memory vector search (`vecmat`, branch `vecmat`)
+`src/docsearch/vecmat.py`: per index, `index-STAMP.db.vec.npy` (L2-normalised float32, 3.1 GB) + `.vec.rids.npy`. `Searcher._vector` uses it (mmap, exact cosine, ~125 ms)
+instead of sqlite-vec (~1.6 s) when present and consistent; otherwise (missing, wrong row count, `DOCSEARCH_VECMAT=off`) it silently falls back to sqlite-vec.
+Built by `docsearch update` before the swap (failure only logs a warning), by `docsearch vecmat` (≈7 min on the full index), and pruned with the index in `store.swap`.
+Adds ~3 GB of page cache/RAM per live index and 3 GB of disk per kept index (3 kept).

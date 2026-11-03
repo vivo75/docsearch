@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import store
+from . import store, vecmat
 from .build import _insert_page, log, parse_pages, phase_embed, unresolved_fraction
 from .config import Config, Repo, load_config
 from .pipeline import Processor
@@ -224,6 +224,12 @@ def update(cfg_path: str, out_dir: Path, *, do_pull: bool = False, dry_run: bool
         raise
     final = dst.with_suffix(".db")
     dst.rename(final)
+    try:                                                  # exact in-memory vector search cache; sqlite-vec is the fallback
+        n_vec = vecmat.build(final)
+        log(f"vecmat cache: {n_vec} vectors")
+    except Exception as e:
+        vecmat.remove(final)
+        log(f"vecmat cache failed ({type(e).__name__}: {e}); falling back to sqlite-vec")
     store.swap(final, link)
     stats.update(status="published", index=final.name)
     log(f"published {final.name}: {added} pages / {chunks} chunks re-written, {removed} docs dropped")

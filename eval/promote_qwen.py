@@ -23,6 +23,7 @@ db.execute("ANALYZE"); db.commit(); db.execute("PRAGMA journal_mode=DELETE"); db
 if problems:
     sys.exit(1)
 final = dst.with_suffix(".db"); dst.rename(final)
+from docsearch import vecmat; log("vecmat:", vecmat.build(final))
 problems = run_canaries(final); log("canary:", problems or "ok")
 if problems:
     sys.exit(f"not swapped; candidate kept as {final.name}")
