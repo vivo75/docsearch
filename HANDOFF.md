@@ -120,3 +120,7 @@ Rollback: `data/exp-nomic-baseline.db` is the last nomic index; point `current.d
 instead of sqlite-vec (~1.6 s) when present and consistent; otherwise (missing, wrong row count, `DOCSEARCH_VECMAT=off`) it silently falls back to sqlite-vec.
 Built by `docsearch update` before the swap (failure only logs a warning), by `docsearch vecmat` (≈7 min on the full index), and pruned with the index in `store.swap`.
 Adds ~3 GB of page cache/RAM per live index and 3 GB of disk per kept index (3 kept).
+
+## Azure Monitor includes recovered (2026-11-03)
+10 more stand-in files in `reusable-content/.../azure-monitor/horizontals/` (listed in its `RECONSTRUCTED.md`/`manifest.json`; generic text from the rendered App Service monitoring page). Still unresolved and
+skipped on purpose: `horz-monitor-ref-*` (tables), `horz-monitor-insights*`, the legal disclaimers, bastion-pricing, ephemeral-ip-note, azure-disk-encryption-retirement. qmon results: eval/README.md.

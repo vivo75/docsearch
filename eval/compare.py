@@ -33,7 +33,9 @@ H = Path(__file__).resolve().parents[1]; Q2 = H / "eval" / "qset2"; R = H / "eva
 D = SearchConfig()
 # nomic = the live index (since 2026-11-01 the extended corpus, same file as c2); c1 = the original 14-repo corpus
 INDEXES = {"nomic": (H / "data" / "exp-nomic-baseline.db", "nomic"),   # nomic baseline = the live index of 2026-11-02 04:02 (until Qwen3 went live)
-           "live": (H / "data" / "current.db", "qwen4b"), "c1": (H / "data" / "index-20261031-144038161.db", "nomic"), "rebuild": (H / "data" / "rebuild-nomic" / "current.db", "nomic"),
+           "live": (H / "data" / "current.db", "qwen4b"),
+           # prem = Qwen3 index before the horz-monitor includes were recovered (2026-11-02 22:31); keep this file while the qmon comparison matters
+           "prem": (H / "data" / "exp-qwen3-premon.db", "qwen4b"), "c1": (H / "data" / "index-20261031-144038161.db", "nomic"), "rebuild": (H / "data" / "rebuild-nomic" / "current.db", "nomic"),
            "bge": (H / "data" / "exp-bge-m3.db", "bge"), "c2": (H / "data" / "corpus2" / "current.db", "nomic"),
            # pre = live index before the reconstructed-include heal (2026-11-01 16:09); nomic = after it
            "pre": (H / "data" / "index-20261101-160916351.db", "nomic"),

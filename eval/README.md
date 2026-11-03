@@ -209,3 +209,8 @@ activity-log, analyze-data, external-tools, kusto-queries, alerts, advisor-recom
 App Service monitoring page; gold = every page using the include (`unresolved.json`). Skipped on purpose: the `horz-monitor-ref-*` family (tables) and the legal disclaimers.
 **Baseline before recovering these includes** (server config, all 60): Qwen3-4B (live) R@5 .050, R@10 .133, MRR .031; nomic R@5 .133, R@10 .217, MRR .071
 (live - nomic: MRR -.040 [-.074,-.011], R@5 -.083 CI includes 0). Same caveat as qinc: other Monitor pages answer these generic questions without being gold.
+**After recovering the 10 includes** (`reusable-content/.../azure-monitor/horizontals/horz-monitor-{resource-types,data-storage,platform-metrics,resource-logs,activity-log,analyze-data,external-tools,kusto-queries,alerts,advisor-recommendations}.md`,
+stand-ins; `docsearch update` healed 35 pages / 597 chunks; live index `index-20261103-012303802.db`; `prem` in compare.py = the index before, kept as `data/exp-qwen3-premon.db`):
+qmon R@1 .000 -> .500, R@5 .067 -> .700 [Δ +.633, CI +.500..+.767], R@10 .133 -> .767, MRR .032 -> .594 [Δ +.562, +.449..+.674], nDCG@10 .013 -> .461.
+No-harm check qset2 test (strict and lenient, 311 q): every metric identical (R@5 .869/.947, MRR .726/.882, unans. AUC .917); the p50 difference (3.5 s vs 0.6 s) is only the vecmat cache that `prem` lacks.
+Caveat: questions target exactly this content (best case); the `analyze-data` / `external-tools` boundary of the stand-ins is inferred.
