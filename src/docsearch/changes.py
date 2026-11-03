@@ -6,12 +6,32 @@ from __future__ import annotations
 
 import collections
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import store
 from .config import Config, Repo
+from .embed import EmbedServer, hf_file
+from .expand import GEMMA
 from .sync import diff, git
+
+# Summaries run once a night, so quality beats speed: a 27B dense model, part of it on the CPU to leave VRAM to the MCP
+# (embeddings + reranker stay resident). ~15 s per area; the small Gemma used for query expansion is the fallback.
+SUMMARY_MODEL = hf_file("unsloth/Qwen3.8-27B-GGUF", "Qwen3.8-27B-UD-Q4_K_M.gguf")
+GPU_LAYERS = 36                                      # of the model's layers; ~10 GB VRAM at 36 (19 GB in total with the MCP's models)
+
+
+class SummaryServer(EmbedServer):
+    def __init__(self, port: int = 8105, device: str = "Vulkan0"):
+        model = SUMMARY_MODEL if SUMMARY_MODEL.exists() else GEMMA
+        super().__init__(model, device, port, ctx=8192, parallel=2)
+        self.ngl = GPU_LAYERS if model is SUMMARY_MODEL else 99
+
+    def _cmd(self, exe: str) -> list[str]:
+        return [exe, "-m", str(self.model), "--device", self.device, "-ngl", str(self.ngl), "-c", str(self.ctx), "-np", str(self.parallel),
+                "--port", str(self.port), "--host", "127.0.0.1", "--jinja", "-fa", "on", "--reasoning-budget", "0"]
+
 
 PROMPT = ("Below are the changes made to the Microsoft Learn documentation area '{area}' (repository {repo}).\n"
           "Commit titles:\n{commits}\nPages (+ added, ~ modified, - removed):\n{pages}\n\n"
@@ -84,7 +104,8 @@ def _count(repo: Repo, a: str, b: str) -> int | None:
         return None
 
 
-def summarize(data: list[dict], url: str, lang: str = "English", min_files: int = 1, max_groups: int = 60) -> int:
+def summarize(data: list[dict], url: str, lang: str = "English", min_files: int = 1, max_groups: int = 60,
+              deadline: float | None = None) -> int:
     """Fill g['summary'] with a short LLM summary for the largest groups. Returns the number of summaries produced."""
     import httpx
     jobs = [(r, n, g) for r in data for n, g in r.get("groups", {}).items() if len(g["files"]) >= min_files]
@@ -93,6 +114,8 @@ def summarize(data: list[dict], url: str, lang: str = "English", min_files: int 
 
     def one(job):
         r, n, g = job
+        if deadline and time.time() > deadline:            # time budget spent: the rest keeps the commit-title listing
+            return
         shown = g["files"][:25]
         pages = "\n".join(f"{s} {g['titles'].get(p, p)} ({p.rsplit('/', 1)[-1]})" for s, p in shown)
         if len(g["files"]) > len(shown):
@@ -133,7 +156,8 @@ def render(data: list[dict], title: str) -> str:
     return "\n".join(L)
 
 
-def run(cfg: Config, db_path: Path, base: Path | None, *, summ: bool, lang: str, port: int, out: Path | None) -> str:
+def run(cfg: Config, db_path: Path, base: Path | None, *, summ: bool, lang: str, port: int, out: Path | None,
+        max_seconds: float = 7200) -> str:
     db = store.connect(db_path, readonly=True)
     new = {k[5:]: v for k, v in store.get_meta(db).items() if k.startswith("head:")}
     if base:
@@ -145,11 +169,11 @@ def run(cfg: Config, db_path: Path, base: Path | None, *, summ: bool, lang: str,
     data = collect(cfg, old, new, db)
     note = ""
     if summ:
-        from .expand import ExpandServer
+        t0 = time.time()
         try:
-            with ExpandServer(port=port) as srv:
-                n = summarize(data, srv.url, lang)
-            note = f"\n_Summaries by the local LLM ({n} areas); the rest list commit titles._\n"
+            with SummaryServer(port=port) as srv:
+                n = summarize(data, srv.url, lang, deadline=t0 + max_seconds)
+            note = f"\n_Summaries by {srv.model.name} ({n} areas, {(time.time() - t0) / 60:.0f} min); the rest list commit titles._\n"
         except Exception as e:                       # no GPU, no llama-server...: the report is still useful without
             note = f"\n_LLM summaries unavailable ({type(e).__name__}: {e}); commit titles shown instead._\n"
     text = render(data, f"Changes in {db_path.resolve().name}") + note

@@ -37,6 +37,7 @@ def main(argv: list[str] | None = None) -> None:
     c.add_argument("--summarize", action="store_true", help="one-line summaries per area from the local LLM (starts llama-server if needed)")
     c.add_argument("--lang", default="Italian")
     c.add_argument("--port", type=int, default=8105, help="llama-server port for the summaries (own instance, never the MCP's)")
+    c.add_argument("--max-seconds", type=float, default=7200, help="time budget for the LLM summaries (default 2 h)")
     c.add_argument("--out", type=Path, help="also write the Markdown report here")
     v = sub.add_parser("verify", help="re-process a random sample of pages and compare with the index")
     v.add_argument("--config", default=str(HERE / "repos.toml"))
@@ -74,7 +75,8 @@ def main(argv: list[str] | None = None) -> None:
     elif a.cmd == "changes":
         from .changes import run
         from .config import load_config
-        print(run(load_config(a.config), a.db, a.base, summ=a.summarize, lang=a.lang, port=a.port, out=a.out))
+        print(run(load_config(a.config), a.db, a.base, summ=a.summarize, lang=a.lang, port=a.port, out=a.out,
+                  max_seconds=a.max_seconds))
     elif a.cmd == "verify":
         import json
         from .update import verify
