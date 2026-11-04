@@ -76,7 +76,7 @@ hf download unsloth/Qwen3.8-27B-GGUF Qwen3.8-27B-UD-Q4_K_M.gguf                 
 
 ## 6. Il corpus (repository Git)
 
-L'elenco è `repos.toml` (19 voci su 17 checkout). I cloni **superficiali** bastano: l'aggiornamento notturno confronta le versioni con `git diff` e, se il commit vecchio non esiste più, rielabora l'intero repository.
+L'elenco è `repos.toml` (20 voci). I cloni **superficiali** bastano: l'aggiornamento notturno confronta le versioni con `git diff` e, se il commit vecchio non esiste più, rielabora l'intero repository.
 
 ```bash
 cd /percorso/Microsoft
@@ -105,16 +105,16 @@ git -C SupportArticles-docs sparse-checkout set support/azure
 
 Dopo il clone controlla `docs_root` in `repos.toml`: per PowerShell indicizza **una sola** cartella `azps-X.Y.Z` (ora `azps-16.5.0`); se nel clone ce n'è una più recente, aggiornala.
 
-### Cosmos DB e Key Vault (ricostruiti)
+### Cosmos DB, Key Vault e MySQL (ricostruiti)
 
-I sorgenti di questi due servizi sono repository privati. Si ricostruiscono dalle pagine renderizzate di Learn (1 richiesta ogni 0,8 s):
+I sorgenti di questi tre servizi sono repository privati (`nosql-docs-pr`, `azure-security-docs-pr`, `azure-databases-docs-pr`). Si ricostruiscono dalle pagine renderizzate di Learn (1 richiesta ogni 0,8 s):
 
 ```bash
 cd /percorso/Microsoft/LLM/docsearch
-uv run python eval/crawl_learn.py --service all     # prima volta: scarica tutto (circa 600 pagine, una decina di minuti); crea ../nosql-docs e ../azure-security-docs
+uv run python eval/crawl_learn.py --service all     # prima volta: scarica tutto (circa 600 pagine, una decina di minuti); crea ../nosql-docs, ../azure-security-docs e ../azure-databases-docs (MySQL)
 ```
 
-Il nightly (§8) ne riscarica un settimo al giorno (`--shard auto`). Se non vuoi questi due servizi, togli le voci `nosql-docs` e `azure-security-docs` da `repos.toml`.
+Il nightly (§8) ne riscarica un settimo al giorno (`--shard auto`). Se non vuoi uno di questi servizi, togli la voce corrispondente (`nosql-docs`, `azure-security-docs`, `azure-databases-docs`) da `repos.toml`.
 
 ### Repository dipendenti (consigliato)
 

@@ -130,3 +130,13 @@ url_base = "https://learn.microsoft.com/azure/cosmos-db"
 docs_root = "azure/cosmos-db"
 restrict = true
 weight = 1.0
+
+# Azure Database for MySQL (learn.microsoft.com/azure/mysql, flexible server mostly): the GitHub source
+# (MicrosoftDocs/azure-databases-docs-pr) is private, so this checkout is rebuilt from rendered
+# Learn markdown by `eval/crawl_learn.py --service mysql` (see its RECONSTRUCTED.md).
+[[repo]]
+name = "azure-databases-docs"
+url_base = "https://learn.microsoft.com/azure/mysql"
+docs_root = "articles/mysql"
+restrict = true
+weight = 1.0

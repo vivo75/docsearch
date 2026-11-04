@@ -30,6 +30,7 @@ import re
 import subprocess
 import sys
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -42,6 +43,7 @@ RATE = 0.8
 
 SERVICES = {
     "cosmos": {
+        "source": "MicrosoftDocs/nosql-docs-pr",          # the private GitHub repo this stands in for
         "checkout": "nosql-docs",
         # (toc-url-dir, checkout-subdir): toc lists pages under the URL dir,
         # files are written under the checkout subdir (== frontmatter source_path).
@@ -52,6 +54,7 @@ SERVICES = {
                   "url_base": "https://learn.microsoft.com/azure/cosmos-db"},
     },
     "keyvault": {
+        "source": "MicrosoftDocs/azure-security-docs-pr",
         "checkout": "azure-security-docs",
         "areas": [(f"azure/key-vault/{a}", f"articles/key-vault/{a}")
                   for a in ("general", "keys", "secrets", "certificates", "managed-hsm")],
@@ -59,6 +62,19 @@ SERVICES = {
         "src_prefix": "articles/key-vault/",
         "entry": {"name": "azure-security-docs", "docs_root": "articles/key-vault",
                   "url_base": "https://learn.microsoft.com/azure/key-vault"},
+    },
+    # Azure Database for MySQL (flexible-server is ~140 of the ~160 pages; the TOC lives at azure/mysql, there is no flexible-server/toc.json)
+    "mysql": {
+        "source": "MicrosoftDocs/azure-databases-docs-pr",
+        "checkout": "azure-databases-docs",
+        "areas": [("azure/mysql", "articles/mysql")],
+        "url_prefix": "azure/mysql/",
+        "src_prefix": "articles/mysql/",
+        # source folders and published URLs differ here (articles/mysql/security/* is served under flexible-server/*), and docsearch derives
+        # the public URL from the path: store each page at its URL path, and skip slugs that Learn answers with another page (aliases)
+        "path_by_url": True,
+        "entry": {"name": "azure-databases-docs", "docs_root": "articles/mysql",
+                  "url_base": "https://learn.microsoft.com/azure/mysql"},
     },
 }
 
@@ -227,7 +243,13 @@ def crawl(service: str, areas: list[str] | None, limit: int | None, shard: int |
             print(f"    NO-FRONTMATTER {slug}", flush=True)
             stats["skipped"] += 1
             continue
-        sp = meta.get("source_path")
+        sp = None if spec.get("path_by_url") else meta.get("source_path")
+        if spec.get("path_by_url"):
+            canon = re.sub(r"^/[a-z]{2}-[a-z]{2}/", "", urllib.parse.urlsplit(str(meta.get("canonicalUrl") or "")).path).strip("/").lower()
+            if canon and canon != slug.lower():
+                stats["aliases"] = stats.get("aliases", 0) + 1       # redirect: the target page is crawled under its own slug
+                continue
+            rel = spec["src_prefix"] + slug[len(spec["url_prefix"]):] + ".md"
         if isinstance(sp, str) and sp:
             tail = posixpath.normpath(sp)
             yml_source = tail.endswith(".yml")    # FAQ pages: YAML source, markdown body
@@ -304,14 +326,14 @@ def crawl(service: str, areas: list[str] | None, limit: int | None, shard: int |
     (checkout / "manifest.json").write_text(json.dumps(
         {"method": "rendered Learn markdown (?accept=text/markdown), 1 req/0.8s",
          "schedule": "1/7 of the pages per day by sha1(slug) mod 7 (ISO weekday); TOC walk every run",
-         "sources": ["MicrosoftDocs/nosql-docs-pr", "MicrosoftDocs/azure-security-docs-pr"][0 if service == "cosmos" else 1],
+         "sources": spec["source"],
          "date": time.strftime("%Y-%m-%d"), "slugs": slugmap, **stats}, indent=1) + "\n", encoding="utf-8")
     (checkout / ".gitignore").write_text("RECONSTRUCTED.md\nmanifest.json\n", encoding="utf-8")
     (checkout / "RECONSTRUCTED.md").write_text(
         f"# {spec['checkout']}: NOT the real repository\n\n"
         f"This directory is a stand-in rebuilt from rendered Microsoft Learn pages "
         f"(`?accept=text/markdown`, {time.strftime('%Y-%m-%d')}); the real sources "
-        f"(`{['MicrosoftDocs/nosql-docs-pr', 'MicrosoftDocs/azure-security-docs-pr'][0 if service == 'cosmos' else 1]}`) "
+        f"(`{spec['source']}`) "
         f"are private. Text is best-effort: exact markup, tab/zone edge cases and link URLs may differ from the "
         f"originals. Each file keeps its Learn frontmatter (ms.service/topic/date, source_path). "
         f"Frontmatter `ms.date` is truncated to YYYY-MM-DD and the ` | Microsoft Learn` title suffix is stripped. "
@@ -338,7 +360,7 @@ def crawl(service: str, areas: list[str] | None, limit: int | None, shard: int |
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--service", choices=["cosmos", "keyvault", "all"], required=True)
+    ap.add_argument("--service", choices=[*SERVICES, "all"], required=True)
     ap.add_argument("--areas", help="comma-separated area names (default: all)")
     ap.add_argument("--limit", type=int, help="max pages per area (pilot)")
     ap.add_argument("--shard", default="all",
@@ -352,7 +374,7 @@ def main() -> None:
     else:
         shard = int(a.shard)
         assert 0 <= shard <= 6
-    svcs = ["cosmos", "keyvault"] if a.service == "all" else [a.service]
+    svcs = list(SERVICES) if a.service == "all" else [a.service]
     total = {}
     for s in svcs:
         total[s] = crawl(s, areas, a.limit, shard)
