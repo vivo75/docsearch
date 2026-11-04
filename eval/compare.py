@@ -100,6 +100,41 @@ def boot(a: np.ndarray, b: np.ndarray, n: int, rng) -> tuple[float, float, float
     return float(d.mean()), float(np.percentile(m, 2.5)), float(np.percentile(m, 97.5))
 
 
+def gate(report: dict, base: str, a, out: Path) -> int:
+    """Rules 1-3 of the pre-registered adoption rule (canaries, rule 4, run in `docsearch update --canary`). Only a test-split run can adopt."""
+    fails: dict[str, list[str]] = {}
+    for n, rep in report["systems"].items():
+        if n == base:
+            continue
+        bad = fails.setdefault(n, [])
+        if a.split != "test":
+            bad.append(f"split is {a.split}: only a run on the test split can adopt a candidate")
+        for mode in ("strict", "lenient"):
+            m, b = rep[mode], report["systems"][base][mode]
+            if not m["delta_mrr"][1] > 0:
+                bad.append(f"rule 1 ({mode}): dMRR {m['delta_mrr'][0]:+.3f} CI [{m['delta_mrr'][1]:+.3f}, {m['delta_mrr'][2]:+.3f}] is not entirely above 0")
+            for k in ("r5", "ndcg10"):
+                if m[f"delta_{k}"][2] < 0:
+                    bad.append(f"rule 2 ({mode}): d{k} CI [{m[f'delta_{k}'][1]:+.3f}, {m[f'delta_{k}'][2]:+.3f}] lies entirely below 0")
+            for key, label in (("unans_auc", "unanswerable AUC"), ("variant_acc", "variant accuracy")):
+                if m[key] is not None and b[key] is not None and b[key] - m[key] > 0.05:
+                    bad.append(f"rule 3 ({mode}): {label} {b[key]:.3f} -> {m[key]:.3f} drops by more than 0.05")
+    failed = {n: b for n, b in fails.items() if b}
+    print("\n== ADOPTION GATE ==")
+    for n, b in fails.items():
+        print(f"  {n}: {'PASS' if not b else 'FAIL'}")
+        for line in b:
+            print(f"      - {line}")
+    if failed and a.override:
+        rec = {"t": time.strftime("%Y-%m-%dT%H:%M:%S"), "result": str(out.relative_to(H)), "set": report["set"], "split": report["split"],
+               "baseline": base, "failed": failed, "override_reason": a.override}
+        with open(H / "eval" / "decisions.jsonl", "a") as f:
+            f.write(json.dumps(rec) + "\n")
+        print(f"  OVERRIDDEN: recorded in eval/decisions.jsonl ({a.override!r})")
+        return 0
+    return 1 if failed else 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--systems", default="nomic/server,bge/server")
@@ -108,6 +143,8 @@ def main():
     ap.add_argument("--split", default="test", choices=["test", "dev", "all"])
     ap.add_argument("--boot", type=int, default=10000)
     ap.add_argument("--rewrites", type=Path, help="JSON id -> {kw, alt} for the server_mq / server_mq1 systems")
+    ap.add_argument("--gate", action="store_true", help="apply the pre-registered adoption rule (README 'Adoption rule', rules 1-3) to every candidate vs the baseline; exit 1 if any fails")
+    ap.add_argument("--override", help="with --gate: adopt anyway; the reason is appended with the failed criteria to eval/decisions.jsonl")
     ap.add_argument("--judgments", help="qset2 lenient judgment file (default judgments-c2.json, the live extended corpus; judgments.json = original corpus only)")
     a = ap.parse_args()
     names = [s.strip() for s in a.systems.split(",")]; base = a.baseline or names[0]
@@ -190,6 +227,8 @@ def main():
     out = R / f"{time.strftime('%Y%m%d-%H%M%S')}-compare-{a.set}-{a.split}.json"
     out.write_text(json.dumps({**report, "rows": {n: res[n] for n in names}}, default=str))
     print(f"\nwrote {out.relative_to(H)}  (+ = CI above 0, - = below 0, ~ = includes 0)")
+    if a.gate:
+        raise SystemExit(gate(report, base, a, out))
 
 
 if __name__ == "__main__":

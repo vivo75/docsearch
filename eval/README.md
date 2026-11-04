@@ -80,6 +80,9 @@ A candidate replaces the current server configuration only if, on the **qset2 te
 2. no 95% CI of ΔR@5 or ΔnDCG@10 (strict or lenient) lies entirely below 0;
 3. unanswerable AUC does not drop by more than 0.05, variant accuracy does not drop by more than 0.05;
 4. canaries pass (15/15).
+**Mechanical since 2026-11-04** (user decision): add `--gate` to the decision run; `compare.py` applies rules 1-3 to every candidate vs the baseline and exits 1 on failure
+(rule 4, canaries, is checked by `docsearch update --canary`). Adopting despite a failure needs `--override "<reason>"`, which appends the failed criteria and the reason to `eval/decisions.jsonl`. Earlier overrides
+(corpus2, Qwen3 strict MRR, B8) were taken without this record. A `--gate` run on a dev split always fails: only test can adopt.
 Latency is reported but is not a gate (user priority: precision over latency). Tuning and exploration use the dev split
 (qset2 dev + v1); the test split is run once per decision. A candidate that fails stays available for re-test only on a new
 or enlarged test set, not by retuning on this one.
