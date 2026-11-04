@@ -52,6 +52,9 @@ CONFIGS["server0"] = (replace(SERVER_CONFIG, expand_vec=1.0, variant_boost=0.0),
 for _t in (9, 8, 7):
     CONFIGS[f"dd{_t}"] = (replace(CONFIGS["server"][0], dedup=_t / 10), True)
     CONFIGS[f"dd{_t}x"] = CONFIGS[f"dd{_t}"]
+# multi-query: the caller adds rewrites (eval/<set>/rewrites.json: id -> {kw, alt}, written blind to the gold by another model)
+CONFIGS["server_mq"] = CONFIGS["server"]; CONFIGS["server_mq1"] = CONFIGS["server"]
+MQ = {"server_mq": ("kw", "alt"), "server_mq1": ("kw",)}
 CREDIT = {"dd9x", "dd8x", "dd7x"}
 METRICS = ("r1", "r5", "r10", "mrr", "ndcg10")
 
@@ -79,7 +82,8 @@ def load(set_name: str, split: str, judgments: str | None = None):
 
 
 def parse(n: str):
-    """`index/config[@reranker]` -> (index, config, reranker); reranker defaults to the server's bge-v2-m3-q8."""
+    """`index/config[@reranker[:chars]]` -> (index, config, reranker[:chars]); reranker defaults to the server's bge-v2-m3-q8 with its
+    default text length (rerank.Reranker.max_chars); `@bge-v2-m3-q8:3000` gives the cross-encoder the first 3000 characters of each chunk."""
     idx, conf = n.split("/"); conf, _, rr = conf.partition("@")
     return idx, conf, rr or "bge-v2-m3-q8"
 
@@ -103,6 +107,7 @@ def main():
     ap.add_argument("--set", default="qset2", choices=["qset2", "qset3", "qinc", "qmon", "qset4", "v1"])
     ap.add_argument("--split", default="test", choices=["test", "dev", "all"])
     ap.add_argument("--boot", type=int, default=10000)
+    ap.add_argument("--rewrites", type=Path, help="JSON id -> {kw, alt} for the server_mq / server_mq1 systems")
     ap.add_argument("--judgments", help="qset2 lenient judgment file (default judgments-c2.json, the live extended corpus; judgments.json = original corpus only)")
     a = ap.parse_args()
     names = [s.strip() for s in a.systems.split(",")]; base = a.baseline or names[0]
@@ -110,6 +115,11 @@ def main():
     print(f"set={a.set} split={a.split}: {len(strict)} questions ({sum(q['answerable'] for q in strict)} answerable)", flush=True)
 
     texts = [q["question"] for q in strict]
+    rw = json.loads(a.rewrites.read_text()) if a.rewrites else {}
+    if any(parse(n)[1] in MQ for n in names) and not rw:
+        raise SystemExit("server_mq systems need --rewrites")
+    xq = {q["id"]: [rw[q["id"]][k] for k in ("kw", "alt") if q["id"] in rw] for q in strict}
+    extra_texts = [t for v in xq.values() for t in v]
     ex = QueryExpander("", (H / "eval" / a.set if a.set != "v1" else Q2) / "expansions.json")
     if any(CONFIGS[parse(n)[1]][1] for n in names):
         missing = [t for t in texts if t not in ex.cache]
@@ -117,15 +127,15 @@ def main():
     kinds = {INDEXES[parse(n)[0]][1] for n in names}
     memo = {}
     if "nomic" in kinds:
-        e = _Embeddings(); memo["nomic"] = {t: e(t) for t in {s for q in texts for s in (q, q + " " + ex.cache.get(q, ""))}}
+        e = _Embeddings(); memo["nomic"] = {t: e(t) for t in {s for q in texts for s in (q, q + " " + ex.cache.get(q, ""))} | set(extra_texts)}
     if "bge" in kinds:
         with BgeServer() as bs:
-            e = Embedder(bs.url, workers=1); memo["bge"] = {t: e.embed([t], "")[0] for t in {s for q in texts for s in (q, q + " " + ex.cache.get(q, ""))}}
+            e = Embedder(bs.url, workers=1); memo["bge"] = {t: e.embed([t], "")[0] for t in {s for q in texts for s in (q, q + " " + ex.cache.get(q, ""))} | set(extra_texts)}
     for kind in ("qwen4b", "qwen8b"):
         if kind in kinds:
             with QwenServer(kind[4:]) as qs:
                 e = Embedder(qs.url, workers=1)
-                memo[kind] = {t: e.embed([qwen_query(t)], "")[0] for t in {s for q in texts for s in (q, q + " " + ex.cache.get(q, ""))}}
+                memo[kind] = {t: e.embed([qwen_query(t)], "")[0] for t in {s for q in texts for s in (q, q + " " + ex.cache.get(q, ""))} | set(extra_texts)}
     cfg = load_config(H / "repos.toml")
 
     def evaluate(todo, rr):
@@ -133,7 +143,8 @@ def main():
         for n in todo:
             idx, conf, _ = parse(n); db, kind = INDEXES[idx]; config, needs_rr = CONFIGS[conf]
             s = E.DocsearchSystem(db, memo[kind].__getitem__, cfg, config, n, measure=True, credit_also_in=conf in CREDIT,
-                                  reranker=(lambda q, d: rr.score(q, d)) if needs_rr else None, expander=lambda q: ex.cache[q])
+                                  reranker=(lambda q, d: rr.score(q, d)) if needs_rr else None, expander=lambda q: ex.cache[q],
+                                  extras={i: [v for k, v in zip(("kw", "alt"), vs) if k in MQ.get(conf, ())] for i, vs in xq.items()} if conf in MQ else None)
             rows_s, rows_l, lat = [], [], []
             for q in strict:
                 res = s.run(q); lat.append(res["latency_ms"])
@@ -143,10 +154,14 @@ def main():
         return out
 
     res = evaluate([n for n in names if not CONFIGS[parse(n)[1]][1]], None)
-    for rname in dict.fromkeys(parse(n)[2] for n in names if CONFIGS[parse(n)[1]][1]):   # one llama-server per reranker
-        with RerankServer(rname) as rs:   # caches are keyed by model name, so one file serves every reranker
-            res.update(evaluate([n for n in names if CONFIGS[parse(n)[1]][1] and parse(n)[2] == rname],
-                                Reranker(rs.url, rname, cache=(H / "eval" / a.set if a.set != "v1" else Q2) / "rerank_cache.jsonl")))
+    wanted = [n for n in names if CONFIGS[parse(n)[1]][1]]
+    for model in dict.fromkeys(parse(n)[2].partition(":")[0] for n in wanted):               # one llama-server per reranker model
+        with RerankServer(model) as rs:
+            for rname in dict.fromkeys(parse(n)[2] for n in wanted if parse(n)[2].partition(":")[0] == model):
+                _, _, chars = rname.partition(":")                                          # caches are keyed by model name and the (cut) text
+                kw = {"max_chars": int(chars)} if chars else {}
+                res.update(evaluate([n for n in wanted if parse(n)[2] == rname],
+                                    Reranker(rs.url, model, cache=(H / "eval" / a.set if a.set != "v1" else Q2) / "rerank_cache.jsonl", **kw)))
     res = {n: res[n] for n in names}
 
     rng = np.random.default_rng(20261101); report = {"set": a.set, "split": a.split, "baseline": base, "systems": {}}

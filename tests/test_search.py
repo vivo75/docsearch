@@ -355,3 +355,22 @@ def test_filtered_lexical_is_ranked_by_bm25(idx):
     ranked = s._lexical("chunks_fts", '"account" OR "rotate"', f, "10, 5, 3, 1", 10)
     alone = s._lexical("chunks_fts", '"account" OR "rotate"', Filters(), "10, 5, 3, 1", 10)
     assert ranked == [r for r in alone if r in ranked]                  # same relative order as the unfiltered BM25 ranking
+
+
+def test_extra_queries_widen_recall_and_rerank_takes_the_best_score(idx):
+    from docsearch.search import SearchConfig
+    s = S(idx, semantic=False)
+    plain = [h["chunk_id"] for h in s.search("firewall", limit=8)["hits"]]
+    assert "c7" not in plain                                            # the spec chunk has nothing to do with "firewall"
+    more = s.search("firewall", limit=8, extra_queries=["Microsoft.Storage/storageAccounts operations", "firewall", "  "])
+    ids = [h["chunk_id"] for h in more["hits"]]
+    assert "c7" in ids and "c6" in ids                                    # main-query hits are kept; the extra one is added
+    seen = []
+
+    def rr(q, docs):
+        seen.append(q)
+        return [3.0 if "storageAccounts" in d and "operations" in q else 0.0 for d in docs]
+    r = Searcher(idx, None, {}, SearchConfig(rerank_top=10, rerank_mode="replace"), rr).search(
+        "firewall", limit=8, extra_queries=["Microsoft.Storage/storageAccounts operations"])
+    assert seen == ["firewall", "Microsoft.Storage/storageAccounts operations"]      # duplicates and blanks are dropped
+    assert r["hits"][0]["chunk_id"] == "c7" and r["rerank_max"] == 3.0

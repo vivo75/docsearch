@@ -41,8 +41,9 @@ def load_questions(path: Path = HERE / "eval" / "questions.jsonl", lenient: bool
 # ---------------------------------------------------------------- systems: each returns ranked sources + extras
 class DocsearchSystem:
     def __init__(self, db: Path, embed, cfg: Config, config: SearchConfig, name: str = "docsearch", measure: bool = True,
-                 reranker=None, expander=None, credit_also_in: bool = False):
+                 reranker=None, expander=None, credit_also_in: bool = False, extras: dict[str, list[str]] | None = None):
         self.name, self.measure, self.credit = name, measure, credit_also_in
+        self.extras = extras or {}                      # question id -> extra queries (what a calling agent would add)
         self.s = Searcher(db, embed, {r.name: r.weight for r in cfg.repos}, config, reranker, expander)
         self.db = self.s.db
 
@@ -56,11 +57,11 @@ class DocsearchSystem:
     def run(self, q: dict, filtered: bool = False) -> dict:
         f = self._variant_filter(q) if filtered else None
         t = time.perf_counter()
-        wide = self.s.search(q["question"], f, limit=CUT, max_tokens=10**6)
+        wide = self.s.search(q["question"], f, limit=CUT, max_tokens=10**6, extra_queries=self.extras.get(q["id"]))
         latency = (time.perf_counter() - t) * 1000
         tokens = 0
         if self.measure:                                       # what an agent actually receives by default
-            default = self.s.search(q["question"], f)
+            default = self.s.search(q["question"], f, extra_queries=self.extras.get(q["id"]))
             tokens = sum(count_tokens(h["snippet"]) for h in default["hits"])
         ranked, seen = [], set()
         for h in wide["hits"]:

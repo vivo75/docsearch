@@ -20,6 +20,7 @@ from .variants import infer_variants, variant_matches
 RRF_K = 60
 CANDIDATES = 50
 OVERSAMPLE = 3000
+MAX_EXTRA = 3                 # extra queries per search_docs call
 SEP = " › "
 STOP = frozenset("""a an the to of in on for is are was were be been what which who how do does did can could should
 would i you we my your our me it its this that these those with without from by at as and or not into about
@@ -61,6 +62,7 @@ class SearchConfig:
     expand_lex: float = 0.0             # weight of an extra BM25 list built from question + LLM-expanded terms (0 = off)
     expand_vec: float = 0.0             # weight of an extra vector list for "question + expansion" (0 = off)
     dedup: float = 0.0                  # merge hits whose text is a near-duplicate (word-3-gram Jaccard >= this) into the best-ranked one; 0 = off
+    multi_weight: float = 1.0           # weight of the lists of each extra query given by the caller (`queries` of search_docs)
     variant_boost: float = 0.0          # multiply the fused score of chunks whose tab/pivot matches a tool mentioned in the query (0 = off)
 
 
@@ -247,11 +249,14 @@ class Searcher:
 
     # ---------------------------------------------------------------- main entry
     def search(self, query: str, filters: Filters | None = None, limit: int = 8,
-               max_tokens: int = 3000) -> dict:
+               max_tokens: int = 3000, extra_queries: list[str] | None = None) -> dict:
         """Phases: (1) model calls that need no database (query expansion, query embeddings) run WITHOUT the lock, so a cold
         start of one model does not block read_doc/browse; (2) candidate lists, fusion and boosts under the lock; (3) the
-        reranker, again without the lock (it only sees the in-memory rows); (4) rendering under the lock."""
+        reranker, again without the lock (it only sees the in-memory rows); (4) rendering under the lock.
+        `extra_queries` (at most MAX_EXTRA): other phrasings or sub-questions written by the caller. Each adds its own keyword and
+        vector lists to the fusion, and a candidate's rerank score is its best over all the queries."""
         f = filters or Filters()
+        extras = list(dict.fromkeys(x.strip() for x in (extra_queries or []) if x and x.strip() and x.strip() != query.strip()))[:MAX_EXTRA]
         t0 = time.perf_counter()
         pq = parse_query(query)
         timings, warnings = {}, []
@@ -277,6 +282,12 @@ class Searcher:
                 warnings.append(f"semantic search unavailable ({type(e).__name__}); results are lexical only")
         if c.vector and not self.embed_query:
             warnings.append("semantic search not configured; results are lexical only")
+        if extras and c.vector and self.embed_query:
+            for i, text in enumerate(extras):
+                try:
+                    blobs[f"vector#{i}"] = _vec_blob(self.embed_query(text))
+                except Exception as e:
+                    warnings.append(f"semantic search unavailable for an extra query ({type(e).__name__})")
         embed_ms = (time.perf_counter() - t) * 1000
 
         with self._lock:
@@ -294,10 +305,17 @@ class Searcher:
             if qx and c.expand_lex:
                 terms = list(dict.fromkeys(pq.terms + parse_query(qx).terms))
                 lists.append(("bm25x", self._lexical("chunks_fts", _match(terms), f, c.fields, c.candidates), c.expand_lex))
+            for i, text in enumerate(extras):
+                xq = parse_query(text)
+                if c.bm25:
+                    lists.append((f"bm25#{i}", self._lexical("chunks_fts", _match(xq.terms), f, c.fields, c.candidates), c.multi_weight))
+                if xq.idents and c.ident:
+                    lists.append((f"ident#{i}", self._lexical("chunks_ident", _match(xq.idents), f, "", c.candidates), c.multi_weight))
             timings["lexical_ms"] = round((time.perf_counter() - t) * 1000)
 
             t = time.perf_counter()
-            for name, w in (("vector_x", c.expand_vec), ("vector", c.vector)):
+            for name, w in (("vector_x", c.expand_vec), ("vector", c.vector),
+                            *((f"vector#{i}", c.multi_weight) for i in range(len(extras)))):
                 if name in blobs and w:
                     try:
                         lists.append((name, self._vector_blob(blobs[name], f, c.candidates), w))
@@ -319,7 +337,7 @@ class Searcher:
         if c.rerank_top and self.reranker:
             t = time.perf_counter()
             try:
-                hits, confidence = self._rerank(query, hits)
+                hits, confidence = self._rerank(query, hits, extras)
             except Exception as e:             # reranker down: keep the fused order, say so
                 warnings.append(f"reranker unavailable ({type(e).__name__}); using fused order")
             timings["rerank_ms"] = round((time.perf_counter() - t) * 1000)
@@ -391,12 +409,14 @@ class Searcher:
         hits.sort(key=lambda h: h.score, reverse=True)
         return hits
 
-    def _rerank(self, query: str, hits: list[Hit]) -> tuple[list[Hit], float]:
+    def _rerank(self, query: str, hits: list[Hit], extras: list[str] = ()) -> tuple[list[Hit], float]:
         n = min(self.cfg.rerank_top, len(hits))
         head, tail = hits[:n], hits[n:]
         docs = [f"{h.row['title']} › {h.row['heading_path']}\n{h.row['text']}" if h.row["heading_path"]
                 else f"{h.row['title']}\n{h.row['text']}" for h in head]
         scores = self.reranker(query, docs)
+        for xq in extras:                                  # a candidate is as relevant as its best match to any of the caller's phrasings
+            scores = [max(a, b) for a, b in zip(scores, self.reranker(xq, docs))]
         for h, sc in zip(head, scores):
             h.rerank = sc
         by_rerank = sorted(range(n), key=lambda i: scores[i], reverse=True)

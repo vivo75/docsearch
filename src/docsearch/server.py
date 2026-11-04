@@ -211,15 +211,19 @@ def make_server(db_path: Path | None = None, config: str | None = None) -> MCPSe
     @mcp.tool(annotations=ro)
     def search_docs(query: str, service: str | None = None, topic: str | None = None, repo: str | None = None,
                     pivot: str | None = None, tab: str | None = None, date_after: str | None = None,
-                    limit: int = 8, max_tokens: int = 3000) -> dict:
+                    limit: int = 8, max_tokens: int = 3000, queries: list[str] | None = None) -> dict:
         """Hybrid (semantic + keyword) search over the documentation. Returns ranked snippets with citations.
         Filters: service (ms.service, e.g. 'azure-storage'), topic (ms.topic: how-to, quickstart, tutorial,
         concept-article, overview, reference, troubleshooting), repo (e.g. 'azure-docs'), pivot/tab (variant id such as
         'azure-cli', 'azure-powershell', 'programming-language-python'), date_after (YYYY-MM-DD on ms.date).
-        Use quotes for exact phrases. For literal identifiers prefer grep_docs."""
+        Use quotes for exact phrases. For literal identifiers prefer grep_docs.
+        queries (optional, up to 3): other phrasings or sub-questions of the same need (e.g. the question reworded with
+        the documentation's likely terminology, or one sub-question per aspect). They are searched together with `query` and
+        merged into one ranked list, which finds pages a single wording misses."""
         limit = max(1, min(limit, 20))
-        r = searcher.search(query, Filters(service, topic, repo, pivot, tab, date_after), limit, max(500, min(max_tokens, 12000)))
-        log("search_docs", {"query": query, "service": service, "topic": topic, "repo": repo, "pivot": pivot,
+        r = searcher.search(query, Filters(service, topic, repo, pivot, tab, date_after), limit, max(500, min(max_tokens, 12000)),
+                            extra_queries=queries)
+        log("search_docs", {"query": query, "queries": queries, "service": service, "topic": topic, "repo": repo, "pivot": pivot,
                             "tab": tab, "date_after": date_after}, r)
         return r
 
