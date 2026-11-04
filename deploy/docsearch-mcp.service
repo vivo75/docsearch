@@ -8,7 +8,7 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=/mnt/D500G/space/Microsoft/LLM/docsearch
-ExecStart=/usr/bin/env uv run docsearch serve --http --host 100.100.121.1 --port 8765
+ExecStart=/mnt/D500G/space/Microsoft/LLM/docsearch/.venv/bin/docsearch serve --http --host 100.100.121.1 --port 8765
 Restart=on-failure
 RestartSec=10
 
