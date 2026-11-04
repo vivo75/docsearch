@@ -1,0 +1,14 @@
+{
+"major version upgrade Azure Database for MySQL Flexible Server from 8.0 to 8.4 in-place": "Azure Database for MySQL Flexible Server major version upgrade 8.0 to 8.4 in-place",
+"upgrade MySQL flexible server major version prerequisites and limitations": "MySQL flexible server upgrade prerequisites limitations major version",
+"MySQL 8.0 end of life extended support Azure flexible server": "Azure Database for MySQL 8.0 extended support flexible server",
+"major version upgrade MySQL flexible server with customer managed key high availability zone redundant": "MySQL flexible server major version upgrade customer managed key high availability zone redundancy",
+"major version upgrade rollback restore backup before upgrade MySQL flexible server": "MySQL flexible server major version upgrade rollback restore backup",
+"major version upgrade downtime duration read replica MySQL flexible server": "MySQL flexible server major version upgrade downtime read replica",
+"MySQL 8.4 breaking changes mysql_native_password removed deprecated features compatibility": "MySQL 8.4 breaking changes mysql_native_password deprecated features compatibility",
+"Azure Database for MySQL Flexible Server concepts version policy supported versions": "Azure Database for MySQL Flexible Server version policy supported versions",
+"Azure Database for MySQL customer managed key data encryption user-assigned managed identity Key Vault": "Azure Database for MySQL customer managed key data encryption user-assigned managed identity Key Vault",
+"on-demand backup restore MySQL flexible server new server point-in-time restore": "Azure MySQL Flexible Server point-in-time restore on-demand backup",
+"MySQL flexible server high availability zone-redundant same-zone change mode failover": "Azure Database for MySQL flexible server high availability zone-redundant failover change mode",
+"terraform Azure Database for MySQL flexible server create": "terraform Azure Database for MySQL flexible server resource"
+}

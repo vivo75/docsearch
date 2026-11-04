@@ -61,7 +61,7 @@ METRICS = ("r1", "r5", "r10", "mrr", "ndcg10")
 
 
 def load(set_name: str, split: str, judgments: str | None = None):
-    if set_name in ("qset2", "qset3", "qinc", "qmon", "qset4"):
+    if set_name in ("qset2", "qset3", "qinc", "qmon", "qset4", "qreal"):
         Qd = H / "eval" / set_name
         jf = Qd / (judgments or ("judgments-c2.json" if set_name == "qset2" else "judgments.json"))
         for f in (Qd / "questions.jsonl", jf):
@@ -139,7 +139,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--systems", default="nomic/server,bge/server")
     ap.add_argument("--baseline", help="default: the first system")
-    ap.add_argument("--set", default="qset2", choices=["qset2", "qset3", "qinc", "qmon", "qset4", "v1"])
+    ap.add_argument("--set", default="qset2", choices=["qset2", "qset3", "qinc", "qmon", "qset4", "qreal", "v1"])
     ap.add_argument("--split", default="test", choices=["test", "dev", "all"])
     ap.add_argument("--boot", type=int, default=10000)
     ap.add_argument("--rewrites", type=Path, help="JSON id -> {kw, alt} for the server_mq / server_mq1 systems")

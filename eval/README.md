@@ -267,3 +267,10 @@ Measurement on qset2 **dev** with simulated agent rewrites (`kw` = keyword form,
 strict dMRR +.003 / +.001 (CIs +-.025, include 0), lenient dMRR +.005 / +.015 (include 0); unanswerable AUC .900 -> .946 / .940; variant accuracy .893 -> .821 strict (worse); p50 598 -> 1050 / 1387 ms.
 With the 3000-char reranker on top: lenient dMRR +.020 [-.002,+.043], dR@5 +.011 [.000,+.025]. Not run on test. Caveat: qset2 questions are full, clear sentences written from the page, which is the case where a second wording helps least;
 real agent queries are shorter and vaguer, which is why the feature is kept, but only a real-query set could show the gain.
+
+## qreal: real queries from a working session (2026-11-04)
+`qreal/questions.jsonl`: 12 questions, the queries (and reformulations) an agent sent to the MCP for an Azure MySQL 8.0 -> 8.4 upgrade (archive `docsearch-feedback.tar`).
+Gold = pages the agent and Microsoft Learn MCP found necessary (not validated by a third party; n=12, so use it as a smoke/regression set, not for adoption: CIs are too wide).
+Run: `eval/compare.py --set qreal --split all --systems live/server`. Expansions cached with `qinc_expand.py qreal`.
+Baseline (live index 2026-11-04 22:49): R@1 .583, R@5 .917, MRR .719, nDCG10 .679. Misses: r08 "version policy supported versions" (rank 11; `concepts-version-policy` loses to changelog/what's new pages),
+r11 HA (rank 5), r04 (rank 3). Not representable yet: `azurerm_mysql_flexible_server` reference (page not in the corpus; see memory todo-terraform-azurerm-docs).
