@@ -233,17 +233,21 @@ def make_server(db_path: Path | None = None, config: str | None = None) -> MCPSe
         return searcher.expand(chunk_id, neighbors, scope, max(500, min(max_tokens, 12000)))
 
     @mcp.tool(annotations=ro)
-    def read_doc(path: str, section: str | None = None, variant: str | None = None, offset: int = 0,
-                 max_tokens: int = 6000) -> dict:
+    def read_doc(path: str | None = None, section: str | None = None, variant: str | None = None, offset: int = 0,
+                 max_tokens: int = 6000, url: str | None = None) -> dict:
         """Read an indexed page (resolved: includes and code snippets expanded) by Learn URL or 'repo/path.md'.
         Follows redirects. Optionally restrict to a section (heading text or anchor) or one variant (e.g. 'azure-cli').
-        Large pages are paged: pass next_offset back as offset."""
-        return searcher.read_doc(path, section, variant, max(0, offset), max(500, min(max_tokens, 20000)))
+        Large pages are paged: pass next_offset back as offset. `url` is accepted as a synonym of `path`."""
+        if not (path or url):
+            return {"error": "pass path (a Learn URL or repo/path.md)"}
+        return searcher.read_doc(path or url, section, variant, max(0, offset), max(500, min(max_tokens, 20000)))
 
     @mcp.tool(annotations=ro)
-    def outline_doc(path: str) -> dict:
+    def outline_doc(path: str | None = None, url: str | None = None) -> dict:
         """Heading tree of a page with anchors, token counts and the variants present under each heading."""
-        return searcher.outline_doc(path)
+        if not (path or url):
+            return {"error": "pass path (a Learn URL or repo/path.md)"}
+        return searcher.outline_doc(path or url)
 
     @mcp.tool(annotations=ro)
     def browse(node_id: int | None = None, toc_path: str | None = None, repo: str | None = None,

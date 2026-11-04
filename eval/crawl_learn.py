@@ -225,6 +225,7 @@ def crawl(service: str, areas: list[str] | None, limit: int | None, shard: int |
             slugs = slugs[:limit]
         print(f"{service}/{area}: {len(slugs) + 1} pages in TOC", flush=True)
         jobs.extend((s, area) for s in slugs)
+    all_slugs = {s.lower() for s, _ in jobs}
     if shard is not None:
         jobs = [(s, a) for s, a in jobs if shard_of(s) == shard]
     print(f"fetching {len(jobs)} pages" + (f" (shard {shard}/7)" if shard is not None else ""), flush=True)
@@ -247,8 +248,10 @@ def crawl(service: str, areas: list[str] | None, limit: int | None, shard: int |
         if spec.get("path_by_url"):
             canon = re.sub(r"^/[a-z]{2}-[a-z]{2}/", "", urllib.parse.urlsplit(str(meta.get("canonicalUrl") or "")).path).strip("/").lower()
             if canon and canon != slug.lower():
-                stats["aliases"] = stats.get("aliases", 0) + 1       # redirect: the target page is crawled under its own slug
-                continue
+                if canon in all_slugs or not canon.startswith(spec["url_prefix"]):
+                    stats["aliases"] = stats.get("aliases", 0) + 1   # redirect: the target page is crawled under its own slug
+                    continue
+                slug = canon           # the TOC lists only the old slug: keep the page at its real URL
             rel = spec["src_prefix"] + slug[len(spec["url_prefix"]):] + ".md"
         if isinstance(sp, str) and sp:
             tail = posixpath.normpath(sp)
