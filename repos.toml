@@ -79,7 +79,7 @@ weight = 1.0
 [[repo]]
 name = "azure-docs-powershell"
 url_base = "https://learn.microsoft.com/powershell/module"
-docs_root = "azps-16.4.0"
+docs_root = "azps-16.5.0"
 restrict = true
 weight = 0.5
 
@@ -108,5 +108,25 @@ name = "azure-support-articles"
 path = "SupportArticles-docs"
 url_base = "https://learn.microsoft.com/troubleshoot/azure"
 docs_root = "support/azure"
+restrict = true
+weight = 1.0
+
+# Azure Key Vault (learn.microsoft.com/azure/key-vault): the GitHub source
+# (MicrosoftDocs/azure-security-docs-pr) is private, so this checkout is rebuilt
+# from rendered Learn markdown by `eval/crawl_learn.py` (see its RECONSTRUCTED.md).
+[[repo]]
+name = "azure-security-docs"
+url_base = "https://learn.microsoft.com/azure/key-vault"
+docs_root = "articles/key-vault"
+restrict = true
+weight = 1.0
+
+# Azure Cosmos DB (learn.microsoft.com/azure/cosmos-db): the GitHub source
+# (MicrosoftDocs/nosql-docs-pr) is private, so this checkout is rebuilt
+# from rendered Learn markdown by `eval/crawl_learn.py` (see its RECONSTRUCTED.md).
+[[repo]]
+name = "nosql-docs"
+url_base = "https://learn.microsoft.com/azure/cosmos-db"
+docs_root = "azure/cosmos-db"
 restrict = true
 weight = 1.0
