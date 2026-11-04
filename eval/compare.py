@@ -53,6 +53,8 @@ for _t in (9, 8, 7):
     CONFIGS[f"dd{_t}"] = (replace(CONFIGS["server"][0], dedup=_t / 10), True)
     CONFIGS[f"dd{_t}x"] = CONFIGS[f"dd{_t}"]
 # multi-query: the caller adds rewrites (eval/<set>/rewrites.json: id -> {kw, alt}, written blind to the gold by another model)
+for _p in (90, 80, 65, 50):
+    CONFIGS[f"news{_p}"] = (replace(CONFIGS["server"][0], news_penalty=_p / 100), CONFIGS["server"][1])
 CONFIGS["server_mq"] = CONFIGS["server"]; CONFIGS["server_mq1"] = CONFIGS["server"]
 MQ = {"server_mq": ("kw", "alt"), "server_mq1": ("kw",)}
 CREDIT = {"dd9x", "dd8x", "dd7x"}

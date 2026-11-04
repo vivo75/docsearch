@@ -274,3 +274,10 @@ Gold = pages the agent and Microsoft Learn MCP found necessary (not validated by
 Run: `eval/compare.py --set qreal --split all --systems live/server`. Expansions cached with `qinc_expand.py qreal`.
 Baseline (live index 2026-11-04 22:49): R@1 .583, R@5 .917, MRR .719, nDCG10 .679. Misses: r08 "version policy supported versions" (rank 11; `concepts-version-policy` loses to changelog/what's new pages),
 r11 HA (rank 5), r04 (rank 3). Not representable yet: `azurerm_mysql_flexible_server` reference (page not in the corpus; see memory todo-terraform-azurerm-docs).
+
+### B11: demoting changelog pages (`news_penalty`, 2026-11-05) — NOT adopted (gate FAIL), code kept off (`news_penalty=1.0`)
+Chronological pages (`whats-new`, `release-notes`, `changelog`, `provider-version-history`; `search.NEWS_PATH`) are multiplied by `news_penalty` in `_boost` and after the RRF rerank fusion, unless the query asks for news (`NEWS_QUERY`).
+- qreal (12 real queries): MRR .719 -> .785 (0.9) / .785 (0.8) / .806 (0.65, 0.5); R@5 .917 -> 1.0 from 0.8 down; `concepts-version-policy` (r08) rank 11 -> 2 at 0.65.
+- qset2 dev: neutral at 0.9-0.65 (MRR -.001..-.002, CIs include 0); 0.5 loses R@5 .004. qset2 test, 0.65: strict identical, lenient nDCG10 -.003 [-.006,-.001].
+- `compare.py --gate` (qset2 test, news65 vs server): FAIL — rule 1 needs dMRR > 0 (qset2 has almost no queries where a changelog is the wrong answer, so it cannot show a gain) and rule 2 (lenient nDCG10 CI below 0).
+Try it with `--systems live/server,live/news65` (configs news90/80/65/50). Adopting needs either a set with changelog-heavy queries or an explicit `--override "reason"` decision.

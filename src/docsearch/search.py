@@ -39,6 +39,11 @@ INTENTS = [
     (re.compile(r"\b(parameters?|properties|schema|reference|api version|arm template|bicep)\b", re.I), {"reference"}),
 ]
 
+# Chronological pages (what's new, release notes, changelogs, provider version history) mention every product and
+# every version, so they crowd out the page that explains the thing. They are demoted unless the query asks for news.
+NEWS_PATH = re.compile(r"(^|/)(whats-new|what-s-new|release-notes?|changelogs?|provider-version-history)[^/]*(\.md|/)|release-notes[^/]*\.md$|/whats-new/", re.I)
+NEWS_QUERY = re.compile(r"\b(what(?:'?s| is| are)? new|new features?|release notes?|changelog|change ?log|released?|version history|announce\w*)\b", re.I)
+
 
 @dataclass(frozen=True)
 class SearchConfig:
@@ -63,6 +68,7 @@ class SearchConfig:
     expand_vec: float = 0.0             # weight of an extra vector list for "question + expansion" (0 = off)
     dedup: float = 0.0                  # merge hits whose text is a near-duplicate (word-3-gram Jaccard >= this) into the best-ranked one; 0 = off
     multi_weight: float = 1.0           # weight of the lists of each extra query given by the caller (`queries` of search_docs)
+    news_penalty: float = 1.0           # multiply the score of chronological pages (NEWS_PATH) unless the query asks for news (1 = off)
     variant_boost: float = 0.0          # multiply the fused score of chunks whose tab/pivot matches a tool mentioned in the query (0 = off)
 
 
@@ -384,6 +390,7 @@ class Searcher:
         for rx, topics in INTENTS:
             if rx.search(pq.raw):
                 wanted |= topics
+        news_ok = bool(NEWS_QUERY.search(pq.raw))
         words = set(pq.terms)
         svc = {s for s, kw in self._services.items() if len(kw & words) >= (len(kw) + 1) // 2}
         today = date.today()
@@ -399,6 +406,8 @@ class Searcher:
                 s *= self.cfg.boost_service
             if want and self._row_matches(r, want):
                 s *= 1.0 + self.cfg.variant_boost
+            if self.cfg.news_penalty != 1.0 and not news_ok and NEWS_PATH.search(r["path"] or ""):
+                s *= self.cfg.news_penalty
             if r["ms_date"] and self.cfg.boost_recency:
                 try:
                     age = (today - date.fromisoformat(r["ms_date"])).days
@@ -424,6 +433,10 @@ class Searcher:
             pos = {i: r for r, i in enumerate(by_rerank)}
             for i, h in enumerate(head):
                 h.score = 1 / (self.cfg.rrf_k + i + 1) + self.cfg.rerank_weight / (self.cfg.rrf_k + pos[i] + 1)
+            if self.cfg.news_penalty != 1.0 and not NEWS_QUERY.search(query):
+                for h in head:
+                    if NEWS_PATH.search(h.row["path"] or ""):
+                        h.score *= self.cfg.news_penalty
             head = sorted(head, key=lambda h: h.score, reverse=True)
         else:
             head = [head[i] for i in by_rerank]
