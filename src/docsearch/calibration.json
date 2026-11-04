@@ -1,10 +1,10 @@
 {
   "bge-v2-m3-q8": {
-    "a": 0.76893,
-    "b": 0.55284,
+    "a": 0.8594,
+    "b": -0.03117,
     "n_answerable": 566,
     "n_unanswerable": 58,
-    "fitted": "2026-11-03",
+    "fitted": "2026-11-04",
     "set": "qset2 dev+test",
     "index": "live"
   }

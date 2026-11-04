@@ -64,7 +64,7 @@ def prism_prompt(query: str, doc: str) -> str:
 class Reranker:
     """score(query, docs) -> one relevance score per doc (higher = more relevant). Optional on-disk score cache."""
 
-    def __init__(self, url: str, name: str, max_chars: int = 1200, cache: Path | None = None):
+    def __init__(self, url: str, name: str, max_chars: int = 3000, cache: Path | None = None):
         self.url, self.name, self.max_chars = url, name, max_chars
         self.http = httpx.Client(timeout=600)
         self.cache_path, self._lock = cache, threading.Lock()

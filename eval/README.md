@@ -252,3 +252,18 @@ strict R@5 .862->.862, MRR .723->.718; lenient R@5 .951->.943, MRR .883->.876; v
 unans. AUC .92->.917. Paired deltas: strict 1 loss (n0456 5->6) + 1 gain (n0030 6->5); lenient 2 losses
 (n0158 5->11: Key Vault AutoRest question now competes with genuinely relevant new KV pages; n0456 5->6), no gains.
 Within noise, same pattern as the corpus2 adoption: qset2 cannot measure the coverage gain, qset4 does.
+
+
+## B9. Reranker sees 3000 characters per chunk (was 1200) — ADOPTED by the gate (2026-11-04)
+Found in the 2026-11-04 review: `Reranker.max_chars=1200` cut chunks (up to ~3,200 chars) to their first ~40%, and the length had never been measured on qset2.
+`compare.py ... live/server@bge-v2-m3-q8:3000` (new `@model:chars` syntax). Dev: 3000 and 6000 (whole chunk) are equal; strict MRR +.014 [-.002,+.030], lenient +.005, AUC .900 -> .919, p50 629 -> 715 ms.
+**Decision run** `--set qset2 --split test --gate` (`results/20261104-130256-compare-qset2-test.json`): strict dMRR +.020 [+.008,+.033], dnDCG +.014 [+.005,+.024], dR@5 +.004 [-.007,+.018];
+lenient dMRR +.013 [+.004,+.023], dnDCG +.009 [+.003,+.015], dR@5 .000; AUC .917 -> .920, var.acc .857 -> .857 strict / .893 lenient; p50 588 -> 700 ms. **Gate: PASS** (rules 1-3; canaries run in the next `update --canary`).
+`rerank.Reranker.max_chars` default is now 3000. `calibration.json` refitted (a=.859, b=-.031; held-out Brier .059 vs .090 for always-answerable).
+
+## B10. Caller-supplied extra queries (`search_docs(queries=[...])`) — implemented, NOT a measured gain (2026-11-04)
+Up to 3 rewrites from the calling agent: each adds a BM25 and a vector list to the RRF fusion; a candidate's rerank score is its best over all queries. Optional, default unused, so nothing changes for callers that do not pass it.
+Measurement on qset2 **dev** with simulated agent rewrites (`kw` = keyword form, `alt` = other angle; written blind to the gold by Sonnet, 313 questions; `compare.py --rewrites`, systems `server_mq1` / `server_mq`):
+strict dMRR +.003 / +.001 (CIs +-.025, include 0), lenient dMRR +.005 / +.015 (include 0); unanswerable AUC .900 -> .946 / .940; variant accuracy .893 -> .821 strict (worse); p50 598 -> 1050 / 1387 ms.
+With the 3000-char reranker on top: lenient dMRR +.020 [-.002,+.043], dR@5 +.011 [.000,+.025]. Not run on test. Caveat: qset2 questions are full, clear sentences written from the page, which is the case where a second wording helps least;
+real agent queries are shorter and vaguer, which is why the feature is kept, but only a real-query set could show the gain.
