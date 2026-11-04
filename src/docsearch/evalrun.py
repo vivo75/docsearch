@@ -22,6 +22,7 @@ from .chunker import count_tokens
 from .config import Config, load_config
 from .search import Filters, SearchConfig, Searcher, parse_query, near_duplicate, shingles
 from .urls import normalize_url
+from .variants import variant_matches
 
 HERE = Path(__file__).resolve().parents[2]
 CUT = 20
@@ -177,7 +178,8 @@ def score_question(q: dict, res: dict) -> dict:
     ev = q.get("expected_variant")
     if ev and res["hits"]:
         best = next((h for h in res["hits"] if h["source"] in gold), None)
-        out["variant_ok"] = bool(best and any(ev in v.split(",") for v in best["variants"]))
+        out["variant_ok"] = bool(best and any(variant_matches(e, ev)
+                                              for v in best["variants"] for e in v.split(",")))
     return out
 
 
