@@ -26,3 +26,23 @@ def test_swap_prunes_and_repoints(tmp_path):
     assert link.read_text() == "4" and len(list(tmp_path.glob("index-*.db"))) == 2
     store.swap(tmp_path / "index-3.db", link, keep=2)
     assert link.read_text() == "3"
+
+
+def test_swap_never_prunes_the_live_index_and_drops_stale_partials(tmp_path):
+    import os, time
+    for i in range(4):
+        p = tmp_path / f"index-{i}.db"
+        p.write_text(str(i))
+        os.utime(p, (1000 + i, 1000 + i))
+    live = tmp_path / "index-0.db"                        # the OLDEST file is the live one (e.g. a rollback)
+    os.utime(live, (1, 1))
+    link = tmp_path / "current.db"
+    link.symlink_to(live.name)
+    (tmp_path / "index-0.db.vec.npy").write_text("v")
+    old, fresh = tmp_path / "index-9.partial", tmp_path / "index-10.partial"
+    old.write_text("x"); fresh.write_text("y")
+    os.utime(old, (time.time() - 10 * 86400,) * 2)
+    store.swap(live, link, keep=2)
+    assert link.read_text() == "0" and (tmp_path / "index-0.db.vec.npy").exists()
+    assert len(list(tmp_path.glob("index-*.db"))) == 2     # live + one newest other
+    assert not old.exists() and fresh.exists()

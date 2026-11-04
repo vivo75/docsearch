@@ -28,21 +28,25 @@ def remove(db_path) -> None:
 def build(db_path) -> int:
     """Write the cache for `db_path` (atomic: temp files, then rename). Returns the number of vectors."""
     db = store.connect(db_path, readonly=True)
-    rids, rows = [], []
-    for rid, blob in db.execute("SELECT rowid, embedding FROM chunks_vec"):
-        rids.append(rid); rows.append(blob)
-    db.close()
-    if not rids:
+    n = db.execute("SELECT count(*) FROM chunks_vec").fetchone()[0]
+    if not n:
+        db.close()
         return 0
-    m = np.frombuffer(b"".join(rows), dtype=np.float32).reshape(len(rids), -1)
-    m = m / np.maximum(np.linalg.norm(m, axis=1, keepdims=True), 1e-12)          # dot product == cosine similarity
+    m = rids = None
+    for i, (rid, blob) in enumerate(db.execute("SELECT rowid, embedding FROM chunks_vec")):     # one preallocated matrix, normalised row by row
+        v = np.frombuffer(blob, dtype=np.float32)
+        if m is None:
+            m, rids = np.empty((n, v.shape[0]), dtype=np.float32), np.empty(n, dtype=np.int64)
+        m[i] = v / max(float(np.linalg.norm(v)), 1e-12)            # dot product == cosine similarity
+        rids[i] = rid
+    db.close()
     mp, rp = paths(db_path)
-    for target, arr in ((mp, m.astype(np.float32)), (rp, np.array(rids, dtype=np.int64))):
+    for target, arr in ((mp, m), (rp, rids)):
         tmp = target.with_name(target.name + ".tmp")
         with open(tmp, "wb") as f:
             np.save(f, arr)
         os.replace(tmp, target)
-    return len(rids)
+    return n
 
 
 class VecMatrix:

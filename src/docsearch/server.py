@@ -51,9 +51,22 @@ class _Embeddings:
                     self.emb = prod_embedder(self.srv.url)
                     atexit.register(lambda: self.srv and self.srv.__exit__())
                 except Exception:
-                    self.failed_at = time.time()
+                    self._drop()
                     raise
-            return self.emb.embed([q], QUERY_PREFIX)[0]
+            try:
+                return self.emb.embed([q], QUERY_PREFIX)[0]
+            except Exception:                  # the server died (or was shared with a process that exited): start afresh next time
+                self._drop()
+                raise
+
+    def _drop(self) -> None:
+        self.failed_at = time.time()
+        srv, self.srv, self.emb = self.srv, None, None
+        if srv:
+            try:
+                srv.__exit__()
+            except Exception:
+                pass
 
 
 class _Reranking:
@@ -77,9 +90,22 @@ class _Reranking:
                     self.rr = Reranker(self.srv.url, self.name)
                     atexit.register(lambda: self.srv and self.srv.__exit__())
                 except Exception:
-                    self.failed_at = time.time()
+                    self._drop()
                     raise
-            return self.rr.score(query, docs)
+            try:
+                return self.rr.score(query, docs)
+            except Exception:
+                self._drop()
+                raise
+
+    def _drop(self) -> None:
+        self.failed_at = time.time()
+        srv, self.srv, self.rr = self.srv, None, None
+        if srv:
+            try:
+                srv.__exit__()
+            except Exception:
+                pass
 
 
 class _Expansion:
@@ -96,8 +122,10 @@ class _Expansion:
         self.timer: threading.Timer | None = None
         atexit.register(self._stop)
 
-    def _stop(self) -> None:
+    def _stop(self, timer: threading.Timer | None = None) -> None:
         with self.lock:
+            if timer is not None and timer is not self.timer:
+                return                          # a newer call re-armed the timer while this one was waiting for the lock
             self._unload()
 
     def _unload(self) -> None:
@@ -135,31 +163,37 @@ class _Expansion:
             self.cache[q] = text
             if self.timer:
                 self.timer.cancel()
-            self.timer = threading.Timer(self.idle, self._stop)
-            self.timer.daemon = True
-            self.timer.start()
+            timer = threading.Timer(self.idle, lambda: self._stop(timer))
+            timer.daemon = True
+            self.timer = timer
+            timer.start()
             return text
 
 
 # Chosen by eval/rerank_eval.py and eval/expand_eval.py: bge-reranker-v2-m3 over the top 10, fused with the original rank at equal weight.
 SERVER_CONFIG = SearchConfig(rerank_top=10, rerank_mode="rrf", rerank_weight=1.0, variant_boost=0.6)
-# expand_vec=1 on top of that (eval/expand_eval.py): R@5 .846 -> .904 strict; applied only when DOCSEARCH_EXPAND is not off.
 # variant_boost=0.6 (eval B8, 2026-11-03): variant accuracy .75 -> .89 on dev with no MRR/R@5 change; tool mentions in the query boost matching tab/pivot chunks.
 # expand_vec=1 on top of that (eval/expand_eval.py): R@5 .846 -> .904 strict; applied only when DOCSEARCH_EXPAND is not off.
+
+
+def make_searcher(db: Path, cfg, *, rerank: str | None = None, expand: bool | None = None, semantic: bool = True) -> Searcher:
+    """The one place that wires the production pipeline. `rerank`/`expand` default to the DOCSEARCH_RERANK / DOCSEARCH_EXPAND
+    environment (see README); the CLI and the MCP server both go through here so `docsearch search` shows what the server returns."""
+    rerank_name = os.environ.get("DOCSEARCH_RERANK", "bge-v2-m3-q8") if rerank is None else rerank
+    use_rerank = rerank_name.lower() not in ("off", "none", "0", "")
+    use_expand = (os.environ.get("DOCSEARCH_EXPAND", "on").lower() not in ("off", "none", "0", "")) if expand is None else expand
+    base = SERVER_CONFIG if use_rerank else SearchConfig()
+    return Searcher(db, _Embeddings() if semantic else None, {r.name: r.weight for r in cfg.repos},
+                    replace(base, expand_vec=1.0) if use_expand else base,
+                    _Reranking(rerank_name) if use_rerank else None, _Expansion() if use_expand else None,
+                    calibrate=calibrator(rerank_name) if use_rerank else None)
 
 
 def make_server(db_path: Path | None = None, config: str | None = None) -> MCPServer:
     cfg = load_config(config or HERE / "repos.toml")
     db = db_path or Path(os.environ.get("DOCSEARCH_DB", HERE / "data" / "current.db"))
     log_path = Path(os.environ.get("DOCSEARCH_QUERY_LOG", HERE / "data" / "queries.jsonl"))
-    rerank_name = os.environ.get("DOCSEARCH_RERANK", "bge-v2-m3-q8")
-    use_rerank = rerank_name.lower() not in ("off", "none", "0", "")
-    use_expand = os.environ.get("DOCSEARCH_EXPAND", "on").lower() not in ("off", "none", "0", "")
-    base = SERVER_CONFIG if use_rerank else SearchConfig()
-    searcher = Searcher(db, _Embeddings(), {r.name: r.weight for r in cfg.repos},
-                        replace(base, expand_vec=1.0) if use_expand else base,
-                        _Reranking(rerank_name) if use_rerank else None, _Expansion() if use_expand else None,
-                        calibrate=calibrator(rerank_name) if use_rerank else None)
+    searcher = make_searcher(db, cfg)
     mcp = MCPServer("docsearch", instructions=INSTRUCTIONS)
     ro = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 

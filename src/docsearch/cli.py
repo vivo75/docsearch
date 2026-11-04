@@ -89,12 +89,10 @@ def main(argv: list[str] | None = None) -> None:
     elif a.cmd == "search":
         import json
         from .config import load_config
-        from .search import Filters, Searcher
-        from .search import SearchConfig
-        from .server import SERVER_CONFIG, _Embeddings, _Reranking
-        cfg = load_config(HERE / "repos.toml")
-        sr = Searcher(a.db, None if a.no_semantic else _Embeddings(), {r.name: r.weight for r in cfg.repos},
-                      SearchConfig() if a.no_rerank else SERVER_CONFIG, None if a.no_rerank else _Reranking("bge-v2-m3-q8"))
+        from .search import Filters
+        from .server import make_searcher
+        sr = make_searcher(a.db, load_config(HERE / "repos.toml"), rerank="off" if a.no_rerank else None,
+                           expand=False if a.no_rerank else None, semantic=not a.no_semantic)
         res = sr.search(a.query, Filters(a.service, a.topic, a.repo, a.pivot, a.tab), a.limit)
         for h in res["hits"]:
             print(f"{h['score']:.4f}  {h['url'] or h['source']}\n        {h['heading']}  {h['variants'] or ''}  [{h['meta']['topic']}]")

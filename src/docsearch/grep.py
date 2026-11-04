@@ -42,7 +42,7 @@ def grep_docs(cfg: Config, pattern: str, glob: str | None = None, limit: int = 2
         t, d = ev.get("type"), ev.get("data", {})
         path = d.get("path", {}).get("text")
         if t in ("match", "context") and path:
-            if (Path(root / path).resolve().parent != root) and not str((root / path).resolve()).startswith(str(root)):
+            if not (root / path).resolve().is_relative_to(root):
                 continue                                           # defence in depth: stay inside the corpus
             pending.setdefault(path, []).append(
                 {"line": d["line_number"], "text": d["lines"]["text"].rstrip("\n"), "match": t == "match"})

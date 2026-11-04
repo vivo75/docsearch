@@ -9,7 +9,7 @@ import time
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
-from . import store
+from . import store, vecmat
 from .chunker import Chunk
 from .config import Config, load_config
 from .embed import DOC_PREFIX, MODEL_ID, prod_embedder, prod_server
@@ -196,6 +196,17 @@ def unresolved_fraction(db: sqlite3.Connection) -> float:
     return bad / n
 
 
+def publish_index(final: Path, link: Path) -> None:
+    """Make `final` the live index: exact in-memory vector cache first (a failure only costs speed: searches fall back to
+    sqlite-vec, ~13x slower), then the atomic swap. The single publish path of build, update and migrate."""
+    try:
+        log(f"vecmat cache: {vecmat.build(final)} vectors")
+    except Exception as e:
+        vecmat.remove(final)
+        log(f"vecmat cache failed ({type(e).__name__}: {e}); falling back to sqlite-vec")
+    store.swap(final, link)
+
+
 def build(cfg_path: str, out_dir: Path, *, repos: list[str] | None = None, limit: int | None = None,
           embed: bool = True, resume: Path | None = None, prev: Path | None = None,
           force: bool = False, max_unresolved: float = 0.15, workers: int | None = None, embedder=None) -> Path:
@@ -232,6 +243,6 @@ def build(cfg_path: str, out_dir: Path, *, repos: list[str] | None = None, limit
     final = part.with_suffix(".db")
     part.rename(final)
     if embed:
-        store.swap(final, link)
+        publish_index(final, link)
         log(f"published {final.name} -> {link}")
     return final

@@ -146,7 +146,7 @@ _INFER = [
     (re.compile(r"powershell"), "powershell"),
     (re.compile(r"\bportal\b"), "portal"),
     (re.compile(r"\bpython\b"), "python"),
-    (re.compile(r"javascript|\bjs\b|\bnode(\.?js)?\b"), "javascript"),
+    (re.compile(r"javascript|\bjs\b|\bnode\.?js\b"), "javascript"),    # not bare "node": AKS "node pool", "node count"
     (re.compile(r"\btypescript\b"), "typescript"),
     (re.compile(r"c#|csharp"), "csharp"),
     (re.compile(r"\bjava(?!script)\b"), "java"),

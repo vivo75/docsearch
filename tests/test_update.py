@@ -162,3 +162,29 @@ def test_changes_report_groups_by_area_and_works_without_llm(env):
     text = render(collect(load_config(cfg), old, new, db), "t")
     assert "Document queue topics" in text and "Bravo" in text and "-1" in text
     assert render(collect(load_config(cfg), new, new, db), "t").strip() == "# t"      # nothing changed -> empty report
+
+
+def test_full_reprocess_of_one_repo_refreshes_pages_of_another_that_include_from_it(tmp_path):
+    def mk(name, files):
+        r = tmp_path / name
+        (r / "articles").mkdir(parents=True); (r / "includes").mkdir()
+        sh(r, "git", "init", "-q"); sh(r, "git", "config", "user.email", "a@b"); sh(r, "git", "config", "user.name", "n")
+        for rel, txt in files.items():
+            (r / rel).write_text(txt)
+        commit(r, "init")
+        return r
+    r = mk("r", {"includes/inc.md": "Shared note.", "articles/a.md": page("Alpha", "Alpha body.")})
+    s = mk("s", {"articles/x.md": page("Xray", "Xray body. [!INCLUDE [n](../../r/includes/inc.md)]")})
+    cfg = tmp_path / "repos.toml"
+    cfg.write_text(f'root = "{tmp_path}"\n[[repo]]\nname = "r"\ndocs_root = "articles"\nurl_base = "https://learn.microsoft.com/azure"\n'
+                   f'[[repo]]\nname = "s"\ndocs_root = "articles"\nurl_base = "https://learn.microsoft.com/other"\n')
+    out = tmp_path / "data"
+    build(str(cfg), out, embedder=FakeEmb(), workers=1)
+    live = (out / "current.db").resolve()
+    db = store.connect(live)
+    assert db.execute("SELECT count(*) FROM deps WHERE dep_path LIKE 'r/includes/%'").fetchone()[0] == 1
+    store.set_meta(db, **{"head:r": "0" * 40}); db.commit(); db.close()       # r lost its recorded commit: reprocessed in full
+    from docsearch.config import load_config
+    ro = store.connect(live, readonly=True)
+    plan = make_plan(load_config(cfg), ro)
+    assert plan.repos["r"].full and plan.repos["s"].pages == {"articles/x.md"}

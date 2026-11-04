@@ -46,3 +46,23 @@ def test_indented_tab_heading_in_list():
     segs = split_variants("1. Do it\n\n   # [PowerShell](#tab/powershell)\n   run x\n\n   ---\n\n2. Next")
     assert [s.variant.tabs for s in segs] == [(), ("powershell",), ()]
     assert "tab/" not in "".join(s.text for s in segs)
+
+
+# ---------------------------------------------------------------- matching and query inference
+from docsearch.variants import infer_variants, variant_matches
+
+
+def test_variant_matches_token_subset():
+    assert variant_matches("azure-cli", "cli") and variant_matches("cli", "azure-cli")
+    assert variant_matches("CLI-2", "cli") and variant_matches("azure-portal/defaultdomain", "azure-portal")
+    assert not variant_matches("javascript", "java") and not variant_matches("powershell", "cli")
+    assert variant_matches("powershellremove", "powershell")            # typo in Learn source
+
+
+def test_infer_variants():
+    assert infer_variants("how to create a vm with azure cli") == {"cli"}
+    assert infer_variants("create a vm using PowerShell or the portal") == {"powershell", "portal"}
+    assert infer_variants("storage in java") == {"java"} and infer_variants("storage in javascript") == {"javascript"}
+    assert infer_variants("create an AKS node pool") == set()            # "node" alone is not Node.js
+    assert infer_variants("run it with node.js") == {"javascript"}
+    assert infer_variants("create a vm without using the portal") == set()

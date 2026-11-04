@@ -310,3 +310,48 @@ def test_vecmat_rejects_wrong_dimension(idx):
     vecmat.build(idx)
     with pytest.raises(ValueError):
         S(idx).vecmat.top(bytes(4 * 768), 3)
+
+
+def test_models_run_outside_the_searcher_lock(idx):
+    """A slow embedder (cold model start) must not block read_doc/browse in other threads."""
+    import threading
+    started, release = threading.Event(), threading.Event()
+
+    def slow_embed(text):
+        started.set()
+        assert release.wait(10)
+        return fake_embed(text)
+    s = Searcher(idx, slow_embed, {})
+    out = {}
+    t = threading.Thread(target=lambda: out.update(r=s.search("storage account")))
+    t.start()
+    assert started.wait(10)
+    done = threading.Event()
+    threading.Thread(target=lambda: (s.read_doc("articles/storage/create.md"), done.set())).start()
+    assert done.wait(5), "read_doc was blocked by a search waiting for the embedder"
+    release.set(); t.join(10)
+    assert out["r"]["hits"]
+
+
+def test_failed_reopen_keeps_serving_the_old_index(idx, tmp_path):
+    link = tmp_path / "current.db"
+    link.symlink_to(idx)
+    s = Searcher(link, fake_embed, {})
+    bad = tmp_path / "broken.db"
+    bad.write_text("not a database")
+    tmp = tmp_path / "current.db.tmp"; tmp.symlink_to(bad); tmp.replace(link)
+    assert s.search("storage account")["hits"]                         # old index still answers
+    assert s.read_doc("articles/storage/create.md")["title"] == "Create a storage account"
+
+
+def test_read_doc_variant_uses_tolerant_matching(idx):
+    r = S(idx).read_doc("articles/storage/create.md", variant="cli")    # tab ids are "azure-cli" in the data
+    assert "az storage account create" in r["text"] and "New-AzStorageAccount" not in r["text"]
+
+
+def test_filtered_lexical_is_ranked_by_bm25(idx):
+    s = S(idx, semantic=False)
+    f = Filters(service="azure-storage")
+    ranked = s._lexical("chunks_fts", '"account" OR "rotate"', f, "10, 5, 3, 1", 10)
+    alone = s._lexical("chunks_fts", '"account" OR "rotate"', Filters(), "10, 5, 3, 1", 10)
+    assert ranked == [r for r in alone if r in ranked]                  # same relative order as the unfiltered BM25 ranking

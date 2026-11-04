@@ -15,7 +15,7 @@ def run_canaries(db_path: Path, path: Path = HERE / "canaries.toml") -> list[str
     spec = tomllib.loads(path.read_text())["canary"]
     qs = {q["id"]: q for q in load_questions(lenient=True)}
     cfg = load_config(HERE / "repos.toml")
-    with prod_server(port=8102, ctx=4096, parallel=2) as srv:
+    with prod_server(port=8104, ctx=4096, parallel=2) as srv:      # own port: the MCP server's (8102) must never share a process the canary will stop
         emb = prod_embedder(srv.url)
         s = Searcher(db_path, lambda q: emb.embed([q], QUERY_PREFIX)[0], {r.name: r.weight for r in cfg.repos})
         failed = []

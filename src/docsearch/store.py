@@ -133,19 +133,26 @@ def health(db: sqlite3.Connection) -> list[str]:
     return problems
 
 
+PARTIAL_MAX_AGE = 3 * 86400       # a build writes its .partial for hours, never for days
+
+
 def swap(new_db: Path, link: Path, keep: int = 3) -> None:
-    """Atomically repoint `link` (a symlink) at `new_db`; prune old builds beyond `keep`."""
+    """Atomically repoint `link` (a symlink) at `new_db`; prune old builds beyond `keep` and abandoned `.partial` files.
+    The index `link` points to is never pruned, whatever its mtime."""
     tmp = link.with_name(link.name + ".tmp")
     if tmp.is_symlink() or tmp.exists():
         tmp.unlink()
     tmp.symlink_to(new_db.name)
     os.replace(tmp, link)
-    olds = sorted(link.parent.glob("index-*.db"), key=lambda p: p.stat().st_mtime, reverse=True)
-    for p in olds[keep:]:
-        for suffix in ("", "-wal", "-shm"):
+    live = link.resolve()
+    olds = sorted((p for p in link.parent.glob("index-*.db") if p.resolve() != live), key=lambda p: p.stat().st_mtime, reverse=True)
+    for p in olds[max(0, keep - 1):]:                      # `keep` counts the live index too
+        for suffix in ("", "-wal", "-shm", ".vec.npy", ".vec.rids.npy"):      # the last two: vecmat cache of the pruned index
             Path(str(p) + suffix).unlink(missing_ok=True)
-        for suffix in (".vec.npy", ".vec.rids.npy"):          # vecmat cache of the pruned index
-            Path(str(p) + suffix).unlink(missing_ok=True)
+    now = time.time()
+    for p in link.parent.glob("index-*.partial*"):
+        if now - p.stat().st_mtime > PARTIAL_MAX_AGE:
+            p.unlink(missing_ok=True)
 
 
 def stamp() -> str:

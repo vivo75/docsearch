@@ -103,16 +103,27 @@ class Embedder:
         r.raise_for_status()
         return [d["embedding"] for d in sorted(r.json()["data"], key=lambda d: d["index"])]
 
+    def _post_retry(self, texts: list[str], tries: int = 3) -> list[list[float]]:
+        """Server errors (5xx: overloaded, restarting) are retried with a pause; only a persistent failure counts as 'input too long'."""
+        for i in range(tries):
+            try:
+                return self._post(texts)
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code < 500 or i == tries - 1:
+                    raise
+                time.sleep(2 * (i + 1))
+        raise AssertionError("unreachable")
+
     def _embed_batch(self, texts: list[str]) -> list[bytes]:
         try:
-            vecs = self._post(texts)
+            vecs = self._post_retry(texts)
         except httpx.HTTPStatusError:
             # one oversize input poisons a batch: retry singly, halving text until it fits
             vecs = []
             for t in texts:
                 while True:
                     try:
-                        vecs.append(self._post([t])[0])
+                        vecs.append(self._post_retry([t])[0])
                         break
                     except httpx.HTTPStatusError:
                         if len(t) < 200:

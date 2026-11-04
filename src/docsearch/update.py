@@ -9,8 +9,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import store, vecmat
-from .build import _insert_page, log, parse_pages, phase_embed, unresolved_fraction
+from . import store
+from .build import _insert_page, log, parse_pages, phase_embed, publish_index, unresolved_fraction
 from .config import Config, Repo, load_config
 from .pipeline import Processor
 from .sync import blob_hashes, diff, head, is_page, last_commit_dates, list_pages
@@ -90,6 +90,17 @@ def make_plan(cfg: Config, db: sqlite3.Connection) -> Plan:
             rp = repos[repo_name]
             if not rp.full and path not in rp.removed:
                 rp.pages.add(path)
+    # a repo that is reprocessed in full may have changed any file: pages of OTHER repos that include or snippet from it are stale too
+    for n, rp in repos.items():
+        if not rp.full:
+            continue
+        prefix = cfg.repo(n).rel_dir(root) + "/"
+        for repo_name, path in db.execute(
+                "SELECT DISTINCT d.repo, d.path FROM deps x JOIN docs d ON d.doc_id = x.doc_id "
+                "WHERE substr(x.dep_path, 1, ?) = ?", (len(prefix), prefix)):
+            other = repos[repo_name]
+            if not other.full and path not in other.removed:
+                other.pages.add(path)
     _heal_unresolved(cfg, db, repos)
     for name, rp in repos.items():                        # a page can't be both reprocessed and removed
         rp.pages -= rp.removed
@@ -226,13 +237,7 @@ def update(cfg_path: str, out_dir: Path, *, do_pull: bool = False, dry_run: bool
         raise
     final = dst.with_suffix(".db")
     dst.rename(final)
-    try:                                                  # exact in-memory vector search cache; sqlite-vec is the fallback
-        n_vec = vecmat.build(final)
-        log(f"vecmat cache: {n_vec} vectors")
-    except Exception as e:
-        vecmat.remove(final)
-        log(f"vecmat cache failed ({type(e).__name__}: {e}); falling back to sqlite-vec")
-    store.swap(final, link)
+    publish_index(final, link)
     stats.update(status="published", index=final.name)
     log(f"published {final.name}: {added} pages / {chunks} chunks re-written, {removed} docs dropped")
     return stats
