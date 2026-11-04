@@ -638,7 +638,7 @@ def lenient_for(a):
 
 
 # ---------------------------------------------------------------- qset3: questions from the corpus additions (2026-11-01)
-NEW_QUOTA = {"azure-cli-reference": 30, "azure-cli-docs": 15, "azure-support-articles": 35}
+NEW_QUOTA = json.loads(os.environ.get("NEW_QUOTA_JSON", '{"azure-cli-reference": 30, "azure-cli-docs": 15, "azure-support-articles": 35}'))
 
 
 def sample_new(a):

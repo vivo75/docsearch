@@ -202,6 +202,22 @@ Integration: `store.DIMS=2560`, `embed.MODEL_ID/DOC_PREFIX/DOC_SUFFIX/QUERY_PREF
 Caveats: 369 chunks (>5500 chars) were embedded in the experiment without the EOS (truncated with it); the canaries now fail on any "semantic search unavailable" warning
 (a stale nomic server on the old port 8098 once made every vector query a silent lexical-only run). `calibration.json` was fitted on nomic candidates. `calibration.json` was refitted on the Qwen index (`abstain.py --calibrate bge-v2-m3-q8 --index live --live`, 566 answerable + 58 unanswerable): a=0.769, b=0.553 (nomic: 0.689, 0.805). Held-out check of the dev fit on test: Brier 0.055 vs 0.090 for always-answerable; predicted 0.26/0.68/0.90/0.98 against observed 0.27/0.73/0.88/1.00.
 
+## B8. Variant boost (`SearchConfig.variant_boost=0.6`, 2026-11-03) — ADOPTED by user override
+Variant accuracy on qset2 was ~0.64-0.75: the right page is found but the first gold hit carries another (or no) tab/pivot. Dev diagnosis (28 variant questions, server config):
+19 OK / 4 SHARED (representative chunk is variant-less) / 4 WRONGVAR (another tool's chunk first; two from compound ids
+`azure-portal/defaultdomain`, one from a Learn source typo `powershellremove`) / 1 NOGOLD. All 28 gold pages carry the exact expected id somewhere: a ranking/matching problem, not coverage.
+Fix (`src/docsearch/variants.py`, `search.py`): token-subset id matching (case-insensitive; `azure-cli` covers `cli`,
+`CLI-2` covers `cli`, compounds split on `/`; `java` still distinct from `javascript`) + typo map for the two Learn typos +
+`infer_variants` (tool mentions in question + expansion, with contrastive-mention guard for "without/instead of the portal") +
+`variant_boost` multiplier in `_boost` + representative preference in `_collapse` (the shown snippet follows the tool asked about).
+Dev weights (variant subset): w=0 var .750 / w=0.3 .821 / w=0.6 **.893** / w=1.0 .893 / w=2.0 .893 (strict MRR falls at 2.0).
+Full dev (283 answerable): w=0.6 vs 0.0 strict R@5 .926/.926 MRR .790/.790, lenient R@5 .965/.968 MRR .912/.911, var .893/.750. w=1.0 loses MRR (-.009/-.008): 0.6 adopted.
+Decision run `compare.py --set qset2 --split test --systems live/server0,live/server` (server0 = no boost; `results/20261103-161558-compare-qset2-test.json`):
+strict ΔR@5 -0.004 [-0.011,+0.000] (1 question, n0046 rank 5->8), ΔMRR -0.000 [-0.007,+0.006], ΔnDCG -0.001 (all ns);
+lenient ΔR@5 +0.000, ΔMRR +0.001, ΔnDCG -0.003 (all ns); var_acc strict .750->.857 (+3, no 1->0 flips), lenient .750->.821 (+2);
+unans. AUC .92->.92; p50 609->616 ms; canaries pass. **Rule 1 (ΔMRR > 0) not met — MRR is neutral; adopted by the user as a snippet-correctness fix with no ranking regression** (same override precedent as the corpus2 adoption).
+Measurement note: `evalrun.variant_ok` now uses the same token-subset rule (n0612 `azure-portal/defaultdomain` counts); `compare.py` keeps ablation system `server0`.
+
 ## qmon: Azure Monitor `horz-monitor-*` includes (2026-11-03)
 `eval/qmon_build.py` -> `eval/qmon/` (60 questions, 10 topics x 6, 3 dev / 3 test per topic; written by Sonnet 5.5, no 5-word copy from the passage, checked by script;
 expansions cached by `qinc_expand.py qmon`). Topics = the prose includes shared by 32-35 monitor pages each: resource-types, data-storage, platform-metrics, resource-logs,
@@ -214,3 +230,22 @@ stand-ins; `docsearch update` healed 35 pages / 597 chunks; live index `index-20
 qmon R@1 .000 -> .500, R@5 .067 -> .700 [Δ +.633, CI +.500..+.767], R@10 .133 -> .767, MRR .032 -> .594 [Δ +.562, +.449..+.674], nDCG@10 .013 -> .461.
 No-harm check qset2 test (strict and lenient, 311 q): every metric identical (R@5 .869/.947, MRR .726/.882, unans. AUC .917); the p50 difference (3.5 s vs 0.6 s) is only the vecmat cache that `prem` lacks.
 Caveat: questions target exactly this content (best case); the `analyze-data` / `external-tools` boundary of the stand-ins is inferred.
+
+## qset4: Cosmos DB + Key Vault coverage (2026-11-03)
+The two services whose GitHub sources are private (`nosql-docs-pr`, `azure-security-docs-pr`) were reconstructed
+from rendered Learn markdown (`eval/crawl_learn.py`; 399 cosmos + 182 Key Vault docs in the index).
+`QSET=qset4 NEW_QUOTA_JSON='{"nosql-docs": 50, "azure-security-docs": 45}' uv run python eval/qset2.py sample-new`
+-> 133 pages; generate (Qwen3.8-27B) -> filter (17 lexical-leak, 5 ungrounded) -> 111 candidates;
+pool on live + on `prem` (pre-crawl Qwen3 index, `data/exp-qwen3-premon.db`) -> judge (gemma-4-26B-A4B, 2783 + 1081 pairs)
+-> `finalize-new`: 109 questions (59 cosmos + 50 Key Vault, all test), 62 with a grade-2 page in the old corpus
+(KV overlaps storage/security/App Service docs; cosmos overlaps architecture/streaming docs), 47 answerable only
+with the additions. `compare.py --set qset4 --systems prem/server,live/server`
+(`results/20261103-223313-compare-qset4-all.json`):
+**Strict is 0.000 for prem by construction** (gold pages are not in that index). Read the lenient rows:
+R@5 0.486 -> 0.982 [Δ +.495, CI +.404..+.587], MRR 0.403 -> 0.934 [Δ +.530, +.441..+.619],
+nDCG@10 0.242 -> 0.755 [Δ +.513, +.441..+.582]; strict live R@5 .917, MRR .803.
+No-harm check qset2 test on the live index (`results/20261103-201926-compare-qset2-test.json`, vs the B8 decision run):
+strict R@5 .862->.862, MRR .723->.718; lenient R@5 .951->.943, MRR .883->.876; var_acc strict .857->.857, lenient .821->.857;
+unans. AUC .92->.917. Paired deltas: strict 1 loss (n0456 5->6) + 1 gain (n0030 6->5); lenient 2 losses
+(n0158 5->11: Key Vault AutoRest question now competes with genuinely relevant new KV pages; n0456 5->6), no gains.
+Within noise, same pattern as the corpus2 adoption: qset2 cannot measure the coverage gain, qset4 does.

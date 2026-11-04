@@ -46,6 +46,8 @@ INDEXES = {"nomic": (H / "data" / "exp-nomic-baseline.db", "nomic"),   # nomic b
 CONFIGS = {"bm25": (replace(D, vector=0), False), "vector": (replace(D, bm25=0, phrase=0, ident=0), False), "hybrid": (D, False),
            "rerank": (SERVER_CONFIG, True), "expand": (replace(D, expand_vec=1.0), True),
            "server": (replace(SERVER_CONFIG, expand_vec=1.0), True)}       # server = what `docsearch serve` runs
+           # server0 = server without the variant boost (ablation, B8); keep while the boost decision matters
+CONFIGS["server0"] = (replace(SERVER_CONFIG, expand_vec=1.0, variant_boost=0.0), True)
 # near-duplicate merging before the rerank (Jaccard thresholds .9/.8/.7); the trailing x credits the pages listed in also_in at the representative's rank
 for _t in (9, 8, 7):
     CONFIGS[f"dd{_t}"] = (replace(CONFIGS["server"][0], dedup=_t / 10), True)
@@ -56,7 +58,7 @@ METRICS = ("r1", "r5", "r10", "mrr", "ndcg10")
 
 
 def load(set_name: str, split: str, judgments: str | None = None):
-    if set_name in ("qset2", "qset3", "qinc", "qmon"):
+    if set_name in ("qset2", "qset3", "qinc", "qmon", "qset4"):
         Qd = H / "eval" / set_name
         jf = Qd / (judgments or ("judgments-c2.json" if set_name == "qset2" else "judgments.json"))
         for f in (Qd / "questions.jsonl", jf):
@@ -98,7 +100,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--systems", default="nomic/server,bge/server")
     ap.add_argument("--baseline", help="default: the first system")
-    ap.add_argument("--set", default="qset2", choices=["qset2", "qset3", "qinc", "qmon", "v1"])
+    ap.add_argument("--set", default="qset2", choices=["qset2", "qset3", "qinc", "qmon", "qset4", "v1"])
     ap.add_argument("--split", default="test", choices=["test", "dev", "all"])
     ap.add_argument("--boot", type=int, default=10000)
     ap.add_argument("--judgments", help="qset2 lenient judgment file (default judgments-c2.json, the live extended corpus; judgments.json = original corpus only)")
