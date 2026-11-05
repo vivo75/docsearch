@@ -140,3 +140,11 @@ url_base = "https://learn.microsoft.com/azure/mysql"
 docs_root = "articles/mysql"
 restrict = true
 weight = 1.0
+
+# Terraform azurerm provider reference (resources, data sources, functions, guides): converted by `eval/convert_azurerm.py` from the
+# `website/docs` of hashicorp/terraform-provider-azurerm (clone in ../terraform-provider-azurerm). Files are laid out like the registry URLs.
+[[repo]]
+name = "azurerm-docs"
+url_base = "https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs"
+docs_root = "."
+weight = 1.0

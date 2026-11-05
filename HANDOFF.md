@@ -116,7 +116,7 @@ Old: RX 6600 8 GB (Vulkan), ~224 GB/s. New: **RX 7900 XTX 24 GB (gfx1100)**, ~96
 
 ## Porting checklist (done 2026-10-31/11-01; kept for reference)
 - Paths: project is at `/mnt/D500G/space/Microsoft/LLM/docsearch` with corpus repos as siblings (106 shallow clones + the 17 indexed repos; `repos.toml`).
-- Models (in HF cache, verified 2026-11-03): bge-reranker-v2-m3 Q8 (gpustack), bge-m3 Q8, `gemma-4-E4B-it-Q4_K_M` (expansion), `gemma-4-26B-A4B` (judging), Qwen3-Embedding 0.6/4/8B, Qwen3.8-27B (summaries), `prism4b/` local reranker in `data/models/`. The old `BUNDLED_NOMIC` path is gone; nomic kept only for eval.
+- Models (in HF cache, verified 2026-11-03): bge-reranker-v2-m3 Q8 (gpustack), bge-m3 Q8, `gemma-4-E4B-it-Q4_K_M` (expansion), `gemma-4-26B-A4B` (judging), Qwen3-Embedding 0.6/4/8B, Qwen3.8-27B (summaries), `prism4b/` local reranker (DELETED 2026-11-05, unused; re-create with the llama.cpp convert described in eval/README.md B1) was in `data/models/`. The old `BUNDLED_NOMIC` path is gone; nomic kept only for eval.
 - `llama-server` on PATH with GPU support. `uv run pytest -q` (94 tests) after porting.
 - If the index schema/vectors are kept (Qwen3-Embedding-4B 2560-d), `data/current.db` can be copied as is (3.8 GB + 3.1 GB `.npy`). content_hash includes MODEL_ID so the nightly update re-embeds everything after a model change.
 - MCP server registered and nightly timer installed and active (see above; verified 2026-11-03).
