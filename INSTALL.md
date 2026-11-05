@@ -13,7 +13,7 @@ dell'indice, registrazione del server MCP e aggiornamento notturno. Cos'è e com
 | Sistema | Linux con systemd utente | testato su Fedora; i comandi `dnf` vanno adattati |
 | GPU | una GPU con driver Vulkan e ≥ 8 GB di VRAM | sviluppato su RX 6600 8 GB (lenta) e RX 7900 XTX 24 GB. Embedding, reranker e modello di espansione stanno insieme in 24 GB. Senza GPU `llama-server` può girare su CPU (`DOCSEARCH_EMBED_DEVICE`), ma la costruzione dell'indice diventa molto lunga |
 | RAM | 16 GB minimo, 32+ consigliati | la cache vettoriale `.npy` pesa ~3 GB e viene letta in memoria |
-| Disco | ~150 GB liberi (stima) | `azure-docs` da solo ~33 GB, `azure-rest-api-specs` ~3 GB; ogni indice 4 GB + 3 GB di cache vettoriale, ne restano 3 versioni (~21 GB) |
+| Disco | ~150 GB liberi (stima) | `azure-docs` ~0,3 GB (senza immagini, storia corta; completo sarebbe ~33 GB), `azure-rest-api-specs` ~3 GB; ogni indice 4 GB + 3 GB di cache vettoriale, ne restano 3 versioni (~21 GB) |
 | Software | `git`, `ripgrep` (`rg`), `uv`, `llama-server` (llama.cpp), Python ≥ 3.12 | `uv` scarica da solo un Python adatto |
 
 ## 2. Struttura delle cartelle
@@ -82,7 +82,11 @@ L'elenco è `repos.toml` (20 voci). I cloni **superficiali** bastano: l'aggiorna
 cd /percorso/Microsoft
 S=--shallow-since=2026-01-01
 # repository principali
-git clone $S https://github.com/MicrosoftDocs/azure-docs.git
+# azure-docs: senza immagini e con poca storia (332 MB invece di 33 GB); cambia la data di --shallow-since solo se serve più storia
+git clone --no-checkout --shallow-since=2026-10-15 --filter=blob:none https://github.com/MicrosoftDocs/azure-docs.git
+git -C azure-docs sparse-checkout init --no-cone
+printf '/*\n!/**/media/\n' > azure-docs/.git/info/sparse-checkout
+git -C azure-docs checkout main
 git clone $S https://github.com/MicrosoftDocs/azure-dev-docs
 git clone $S https://github.com/MicrosoftDocs/architecture-center
 git clone $S https://github.com/MicrosoftDocs/azure-aks-docs.git
