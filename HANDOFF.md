@@ -195,3 +195,7 @@ Healed 35 pages / 597 chunks (`index-20261103-012303802.db`); nightly 2026-11-03
 ## Change reports (2026-11-03; new since the last handoff)
 `docsearch changes [--summ] [--lang] [--out]` (`src/docsearch/changes.py`): groups the last update's touched files by documentation area (git diff old→new HEADs per repo) with commit titles; `--summ` adds 1-2-sentence LLM summaries per area.
 Summaries default to Qwen3.8-27B (`unsloth/Qwen3.8-27B-GGUF` Q4_K_M, 36 layers on GPU ≈ 10 GB VRAM alongside the resident MCP models, 2 h budget) with `gemma-4-E4B-it` fallback; nightly writes `data/reports/changes-<index>.md` (see `deploy/nightly.sh`). First report: `data/reports/changes-index-20261103-033921362.db.md`.
+
+## Terraform azurerm provider docs (2026-11-05)
+`azurerm-docs` entry in repos.toml: `eval/convert_azurerm.py [--pull]` converts `website/docs/**/*.html.markdown` of the shallow sparse clone `../terraform-provider-azurerm` into `../azurerm-docs/` (own local git repo; r/ -> resources/, d/ -> data-sources/, URLs `registry.terraform.io/providers/hashicorp/azurerm/latest/docs/...`; ms.service `terraform-azurerm`, ms.topic reference/conceptual). 1,662 pages / 7,122 chunks. The nightly pulls + converts before `docsearch update`.
+Regression check (qset2 test, index before vs after, `pretf` vs `live`): strict identical (MRR .713, R@5 .834); lenient nDCG10 -.003 [-.007,-.000] (borderline; corpus additions are not gated like model changes). Not covered: Azure DevOps + Terraform, dev.mysql.com 8.4 removals.
