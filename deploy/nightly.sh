@@ -13,6 +13,7 @@ flock -n 9 || { echo "$(date -Is) another update is running" >> data/nightly.log
   .venv/bin/python eval/crawl_learn.py --service all --shard auto || echo "crawl failed"
   # Terraform azurerm provider docs: pull the upstream clone and convert (never fails the run)
   .venv/bin/python eval/convert_azurerm.py --pull || echo "azurerm convert failed"
+  .venv/bin/python eval/convert_aks_releases.py --pull || echo "aks release notes convert failed"
   .venv/bin/docsearch update --pull --canary
   # the MCP server reads repos.toml once at start (grep_docs roots, repo weights): restart it if the file changed since
   started=$(date -d "$(systemctl --user show docsearch-mcp -p ActiveEnterTimestamp --value)" +%s 2>/dev/null || echo 0)

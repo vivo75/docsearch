@@ -148,3 +148,11 @@ name = "azurerm-docs"
 url_base = "https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs"
 docs_root = "."
 weight = 1.0
+
+# AKS release notes (github.com/Azure/AKS CHANGELOG.md, one page per release): `eval/convert_aks_releases.py`, clone in ../AKS (sparse, CHANGELOG.md only).
+# Files are laid out as releases/tag/<date>.md so the derived URL is the real GitHub release page.
+[[repo]]
+name = "aks-release-notes"
+url_base = "https://github.com/Azure/AKS"
+docs_root = "."
+weight = 1.0
