@@ -126,6 +126,23 @@ def stale_warnings(rendered: list[dict], months: int = 24, top: int = 3) -> list
     return out
 
 
+_LITERAL = re.compile(r"[A-Za-z0-9_][\w@./:-]*[\w@]")
+
+
+def uncovered_literals(query: str, texts: list[str], extras: list[str] = ()) -> list[str]:
+    """Identifier-like tokens of the query (`AzureCLI@2`, `maxSurge`, `a_b`, `x.y`, two or more hyphens) that appear in none of the returned texts.
+    That is the signature of a compound question ('do A with tool B') where one subject drowned the other: the caller should grep the literal
+    or split the question with `queries`. Plain words and single-hyphen words never count."""
+    blob = "\n".join(texts).lower()
+    out: list[str] = []
+    for tok in _LITERAL.findall(" ".join([query, *extras])):
+        t = tok.strip(".:/-")
+        looks = any(c in t for c in "@_/") or re.search(r"[a-z][A-Z]", t) or t.count("-") >= 2 or re.search(r"[A-Za-z]\.[A-Za-z]", t)
+        if len(t) >= 4 and looks and t.lower() not in blob and t not in out:
+            out.append(t)
+    return out[:3]
+
+
 @dataclass
 class ParsedQuery:
     raw: str
@@ -377,6 +394,11 @@ class Searcher:
             same = gen == self._gen            # not reopened here: rows of the old index must not meet the new connection
             rendered = self._render(hits, max_tokens, toc=same)
         warnings.extend(stale_warnings(rendered))
+        if hits:
+            miss = uncovered_literals(query, [f"{h.row['title']} {h.row['heading_path']} {h.row['text']}" for h in hits], extras or [])
+            if miss:
+                warnings.append(f"literal term(s) {', '.join(repr(m) for m in miss)} from the query appear in none of the {len(hits)} hits: one subject of a compound "
+                                "question may have drowned the other. Try grep_docs for the exact string, or pass `queries` with one sub-question per subject.")
         if not same:
             warnings.append("the index was replaced while searching; table-of-contents context omitted")
         timings["total_ms"] = round((time.perf_counter() - t0) * 1000)

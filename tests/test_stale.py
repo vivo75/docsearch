@@ -17,3 +17,12 @@ def test_no_warning_cases():
     assert stale_warnings([h("A", "a.md", None), h("B", "b.md", "2026-08-03")]) == []                    # unknown date
     assert stale_warnings([h("A", "a.md", "2024-01-01", topic="release-notes"), h("B", "b.md", "2026-08-03")]) == []
     assert stale_warnings([h("N", "n.md", "2026-08-03"), h("O", "o.md", "2020-01-01")], top=1) == []        # old page not in the first `top`
+
+
+def test_uncovered_literals():
+    from docsearch.search import uncovered_literals
+    texts = ["Upgrade node images: az aks upgrade --node-image-only", "Use maxSurge to set surge"]
+    q = "run az aks upgrade with the AzureCLI@2 task, maxSurge and self-hosted agent on Ubuntu"
+    assert uncovered_literals(q, texts) == ["AzureCLI@2"]                       # maxSurge is covered; self-hosted / plain words never count
+    assert uncovered_literals("create a storage account", texts) == []
+    assert uncovered_literals("AzureCLI@2 task", texts, ["use my_setting_name here"]) == ["AzureCLI@2", "my_setting_name"]
