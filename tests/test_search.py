@@ -5,7 +5,7 @@ from array import array
 
 import pytest
 
-from docsearch import store
+from docsearch import store, vecmat
 from docsearch.config import Config, Repo
 from docsearch.grep import grep_docs
 from docsearch.search import Filters, Searcher, parse_query
@@ -71,6 +71,7 @@ def test_parse_query():
 
 
 def test_hybrid_and_lexical_only(idx):
+    vecmat.build(idx)                                   # a published index has its matrix; without it a warning says so (test below)
     r = S(idx).search("restrict network access firewall")
     assert r["hits"][0]["source"].endswith("net/overview.md") and not r["warnings"]
     r = S(idx, semantic=False).search("restrict network access firewall")
@@ -178,6 +179,7 @@ def test_searcher_usable_from_another_thread(idx):
 
 
 def test_rerank_replace_rrf_and_failure_fallback(idx):
+    vecmat.build(idx)
     calls = []
 
     def fake(query, docs):                 # "likes" documents mentioning PowerShell
@@ -388,3 +390,30 @@ def test_relevance_is_calibrated_per_hit_and_falls_with_position(idx):
     rel = [h["relevance"] for h in hits if "relevance" in h]
     assert rel and rel == sorted(rel, reverse=True) and rel[0] > rel[-1] or len(rel) == 1
     assert "relevance" not in Searcher(idx, None, {}, SearchConfig(rerank_top=10, rerank_mode="replace"), rr).search("firewall")["hits"][0]
+
+
+def test_vecmat_status_warning_and_check(idx, monkeypatch):
+    s = S(idx)
+    assert s.status()["vecmat"]["in_use"] is False and "missing" in s.status()["vecmat"]["reason"]
+    assert any("exact vector cache not in use" in w and "missing" in w for w in s.search("restrict network access firewall")["warnings"])
+    assert vecmat.check(idx)["problems"] == ["cache file missing"]
+    vecmat.build(idx)
+    s = S(idx)
+    v = s.status()["vecmat"]
+    assert v["in_use"] and v["rows"] == v["chunks_vec"] == 7 and v["consistent_with_index"] and v["mapped_bytes"] > 0
+    assert not any("vector cache" in w for w in s.search("restrict network access firewall")["warnings"])
+    r = vecmat.check(idx)
+    assert r["problems"] == [] and r["sample_max_abs_diff"] < 1e-6 and r["rids"] == 7
+    monkeypatch.setenv("DOCSEARCH_VECMAT", "off")                                # deliberate: no warning
+    assert not any("vector cache" in w for w in S(idx).search("restrict network access firewall")["warnings"])
+
+
+def test_vecmat_check_finds_a_different_rowid_set(idx):
+    import numpy as np
+    vecmat.build(idx)
+    rp = vecmat.paths(idx)[1]
+    r = np.load(rp)
+    r[0] = 999                                                                   # same size, different rowid: the cheap load check cannot see it
+    np.save(rp, r)
+    assert vecmat.load(idx) is not None
+    assert any("rowid sets differ" in p for p in vecmat.check(idx)["problems"])

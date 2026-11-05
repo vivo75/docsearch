@@ -249,5 +249,5 @@ Se tutto torna, l'MCP risponde con 6 strumenti: `search_docs`, `grep_docs`, `exp
 | `semantic search unavailable` / `reranker unavailable` | `llama-server` non parte: versione, librerie mancanti (`ldd … \| grep "not found"`), modello assente in cache, porta occupata |
 | `build NOT published … unresolved include/snippet rate` | mancano i repository dipendenti (§6) o le cartelle ricostruite; `--force` per pubblicare lo stesso |
 | servizio systemd termina con `status=127` | eseguibile non trovato nel `PATH` di systemd: usa percorsi assoluti (`.venv/bin/docsearch`) |
-| ricerche lente (~1,5 s in più) | manca la cache `.npy`: `uv run docsearch vecmat` |
+| ricerche lente (~1,5 s in più), avviso `exact vector cache not in use` | manca o non coincide la cache `.npy`: `uv run docsearch vecmat` (la ricostruisce). Controllo senza ricostruire: `uv run docsearch vecmat --check` (dimensioni, stesso insieme di rowid, righe a campione; esce con 1 se c'è un problema). Stato nel server: risorsa `docsearch://status`, blocco `vecmat` (`in_use`, `consistent_with_index`, `resident_bytes`: la matrice è mappata in memoria, vale 0 finché il processo non fa la prima ricerca semantica) |
 | `docsearch update` rielabora un repository intero | normale con cloni superficiali che hanno perso il vecchio commit; i vettori già calcolati si riusano per hash |

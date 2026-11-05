@@ -107,6 +107,20 @@ class Filters:
         return any(self.__dict__.values())
 
 
+def _resident_bytes(path: Path) -> int | None:
+    """Resident size (Rss) of the mapping of `path` in this process, from /proc/self/smaps (Linux only; None elsewhere)."""
+    try:
+        cur, total = False, 0
+        for line in open("/proc/self/smaps", encoding="utf-8", errors="replace"):
+            if line[:1] in "0123456789abcdef" and "-" in line.split(" ", 1)[0]:
+                cur = line.rstrip().endswith(str(path))
+            elif cur and line.startswith("Rss:"):
+                total += int(line.split()[1]) * 1024
+        return total
+    except OSError:
+        return None
+
+
 def stale_warnings(rendered: list[dict], months: int = 24, top: int = 3) -> list[str]:
     """Tell the caller when one of the first `top` pages was last reviewed (ms_date) `months`+ before another returned page of the same service:
     the older page may state rules the newer one has replaced. Informational only: the ranking is not touched (a stale-date penalty was
@@ -234,12 +248,13 @@ class Searcher:
         try:
             db.row_factory = sqlite3.Row
             meta = store.get_meta(db)
-            vm = vecmat.load(real, db)                       # None -> sqlite-vec scan
+            vm, vm_why = vecmat.load_why(real, db)           # None -> sqlite-vec scan
             services = self._service_keywords(db)
         except BaseException:
             db.close()
             raise
         self._real, self.db, self.meta, self.vecmat, self._services = real, db, meta, vm, services
+        self._vecmat_why = vm_why
         try:
             self._conflicts = conflicts.active(db, conflicts.load(CONFLICTS_FILE))
         except sqlite3.Error:
@@ -331,6 +346,8 @@ class Searcher:
         blobs: dict[str, bytes] = {}
         wanted_vec = ([("vector_x", f"{query} {qx}")] if qx and c.expand_vec and self.embed_query else []) + \
                      ([("vector", query)] if c.vector and self.embed_query else [])
+        if wanted_vec and self.vecmat is None and self._vecmat_why and not self._vecmat_why.startswith("disabled"):
+            warnings.append(f"exact vector cache not in use ({self._vecmat_why}): semantic search falls back to the sqlite-vec scan, several times slower")
         for name, text in wanted_vec:
             try:
                 blobs[name] = _vec_blob(self.embed_query(text))
@@ -783,4 +800,18 @@ class Searcher:
         n = lambda t: self.db.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
         return {"meta": {k: v for k, v in self.meta.items() if not k.startswith("head:")},
                 "heads": {k[5:]: v[:10] for k, v in self.meta.items() if k.startswith("head:")},
-                "docs": n("docs"), "chunks": n("chunks")}
+                "docs": n("docs"), "chunks": n("chunks"), "vecmat": self._vecmat_status(n("chunks_vec"))}
+
+    def _vecmat_status(self, vectors: int) -> dict:
+        """Is the in-memory vector matrix in use for this index, and how much of it is resident in this process."""
+        mp, _ = vecmat.paths(self._real)
+        out: dict = {"in_use": self.vecmat is not None, "index": Path(self._real).name, "chunks_vec": vectors}
+        if self.vecmat is None:
+            out["reason"] = self._vecmat_why
+            return out
+        m = self.vecmat.m
+        out.update(file=mp.name, rows=int(m.shape[0]), dims=int(m.shape[1]), consistent_with_index=bool(m.shape[0] == vectors == len(self.vecmat.rids)),
+                   mapped_bytes=int(mp.stat().st_size), resident_bytes=_resident_bytes(mp),
+                   note="memory-mapped: resident_bytes is what this process has touched (0 right after start until the first semantic search); "
+                        "run `docsearch vecmat --check` for the full rowid comparison")
+        return out

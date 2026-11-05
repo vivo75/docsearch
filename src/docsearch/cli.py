@@ -23,6 +23,7 @@ def main(argv: list[str] | None = None) -> None:
     m.add_argument("--out", type=Path, default=HERE / "data")
     v = sub.add_parser("vecmat", help="(re)build the in-memory vector cache (.npy) of an index; searches use it when present")
     v.add_argument("--db", type=Path, default=HERE / "data" / "current.db", help="index file (default: what data/current.db points to)")
+    v.add_argument("--check", action="store_true", help="do not build: compare the existing cache with the index (sizes, rowid set, sampled rows); exit 1 on any problem")
     u = sub.add_parser("update", help="incremental update from git changes (copy, patch, verify, atomic swap)")
     u.add_argument("--config", default=str(HERE / "repos.toml"))
     u.add_argument("--out", type=Path, default=HERE / "data")
@@ -65,6 +66,11 @@ def main(argv: list[str] | None = None) -> None:
     elif a.cmd == "vecmat":
         from . import vecmat
         db = a.db.resolve()
+        if a.check:
+            import json
+            r = vecmat.check(db)
+            print(json.dumps(r, indent=2))
+            raise SystemExit(1 if r["problems"] else 0)
         print(f"{db.name}: {vecmat.build(db)} vectors cached")
     elif a.cmd == "update":
         import json

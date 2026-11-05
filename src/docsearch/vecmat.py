@@ -68,19 +68,65 @@ class VecMatrix:
         return [int(r) for r in self.rids[i[np.argsort(-s[i], kind="stable")]]]
 
 
-def load(db_path, db=None) -> VecMatrix | None:
+def load_why(db_path, db=None) -> tuple[VecMatrix | None, str | None]:
+    """(matrix, None) when the cache is usable, else (None, reason). Only the sizes are compared here (cheap, done at every index open);
+    `check` compares the rowids themselves."""
     if os.environ.get("DOCSEARCH_VECMAT", "").lower() == "off":
-        return None
+        return None, "disabled (DOCSEARCH_VECMAT=off)"
     mp, rp = paths(db_path)
     if not (mp.exists() and rp.exists()):
-        return None
+        return None, f"cache file missing ({mp.name} / {rp.name}); build it with `docsearch vecmat`"
     try:
         rids = np.load(rp)
         m = np.load(mp, mmap_mode="r")
         db = db or store.connect(db_path, readonly=True)
         n = db.execute("SELECT count(*) FROM chunks_vec").fetchone()[0]
         if len(rids) != n or m.shape[0] != n:
-            return None
-        return VecMatrix(m, rids)
-    except (OSError, ValueError):
-        return None
+            return None, f"stale: matrix has {m.shape[0]} rows, rids {len(rids)}, chunks_vec {n}; rebuild with `docsearch vecmat`"
+        return VecMatrix(m, rids), None
+    except (OSError, ValueError) as e:
+        return None, f"unreadable ({type(e).__name__}: {e})"
+
+
+def load(db_path, db=None) -> VecMatrix | None:
+    return load_why(db_path, db)[0]
+
+
+def check(db_path, sample: int = 20, seed: int = 1) -> dict:
+    """Full coherence check of the cache against the index: same sizes, the SAME rowid set (no duplicates), and `sample` random rows
+    compared with the embeddings in the database (after normalisation). `problems` is empty when everything agrees."""
+    import random
+    mp, rp = paths(db_path)
+    out: dict = {"index": Path(db_path).name, "matrix_file": mp.name, "problems": []}
+    pr = out["problems"]
+    if not (mp.exists() and rp.exists()):
+        pr.append("cache file missing")
+        return out
+    m, rids = np.load(mp, mmap_mode="r"), np.load(rp)
+    db = store.connect(db_path, readonly=True)
+    ids = np.fromiter((r[0] for r in db.execute("SELECT rowid FROM chunks_vec")), dtype=np.int64)
+    out.update(matrix_rows=int(m.shape[0]), dims=int(m.shape[1]) if m.ndim == 2 else None, rids=int(len(rids)), chunks_vec=int(len(ids)),
+               matrix_bytes=int(mp.stat().st_size))
+    if not (m.shape[0] == len(rids) == len(ids)):
+        pr.append(f"sizes differ: matrix {m.shape[0]}, rids {len(rids)}, chunks_vec {len(ids)}")
+    if len(set(rids.tolist())) != len(rids):
+        pr.append("duplicate rowids in the cache")
+    if set(rids.tolist()) != set(ids.tolist()):
+        pr.append(f"rowid sets differ: {len(set(rids.tolist()) - set(ids.tolist()))} only in the cache, {len(set(ids.tolist()) - set(rids.tolist()))} only in the index")
+    if not np.isfinite(np.asarray(m[:: max(1, len(rids) // 2000)])).all():
+        pr.append("non-finite values in the matrix")
+    worst = 0.0
+    rng = random.Random(seed)
+    for i in rng.sample(range(len(rids)), min(sample, len(rids))) if len(rids) else []:
+        row = db.execute("SELECT embedding FROM chunks_vec WHERE rowid = ?", (int(rids[i]),)).fetchone()
+        if row is None:
+            pr.append(f"rowid {int(rids[i])} is not in chunks_vec")
+            continue
+        v = np.frombuffer(row[0], dtype=np.float32)
+        d = float(np.abs(m[i] - v / max(float(np.linalg.norm(v)), 1e-12)).max())
+        worst = max(worst, d)
+    out["sample_max_abs_diff"] = worst
+    if worst > 1e-5:
+        pr.append(f"sampled rows differ from the database embeddings (max abs diff {worst:.2e})")
+    db.close()
+    return out
