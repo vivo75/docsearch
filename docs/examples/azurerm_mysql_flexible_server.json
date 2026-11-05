@@ -1,0 +1,566 @@
+{
+ "resource": "azurerm_mysql_flexible_server",
+ "style": "untyped",
+ "defined_in": "internal/services/mysql/mysql_flexible_server_resource.go",
+ "provenance": {
+  "provider": {
+   "repo": "hashicorp/terraform-provider-azurerm",
+   "revision": "eb79fcd",
+   "license": "MPL-2.0"
+  },
+  "sdk": {
+   "repo": "hashicorp/go-azure-sdk",
+   "tag": "v0.20261027.1151402",
+   "license": "MPL-2.0"
+  },
+  "note": "facts derived from the source code; no source text is reproduced; both repositories are Mozilla Public License 2.0, copyright HashiCorp"
+ },
+ "arguments": {
+  "name": {
+   "type": "string",
+   "required": true,
+   "force_new": true,
+   "validate": {
+    "kind": "custom",
+    "func": "validate.FlexibleServerName"
+   }
+  },
+  "resource_group_name": {
+   "helper": "commonschema.ResourceGroupName()",
+   "type": "string",
+   "required": true,
+   "force_new": true
+  },
+  "location": {
+   "helper": "commonschema.Location()",
+   "type": "string",
+   "required": true,
+   "force_new": true
+  },
+  "administrator_login": {
+   "type": "string",
+   "optional": true,
+   "computed": true,
+   "force_new": true,
+   "validate": {
+    "kind": "custom",
+    "func": "validate.FlexibleServerAdministratorLogin"
+   }
+  },
+  "administrator_password": {
+   "type": "string",
+   "optional": true,
+   "sensitive": true,
+   "validate": {
+    "kind": "custom",
+    "func": "validate.FlexibleServerAdministratorPassword"
+   },
+   "conflicts_with": [
+    "administrator_password_wo"
+   ]
+  },
+  "administrator_password_wo": {
+   "type": "string",
+   "optional": true,
+   "write_only": true,
+   "validate": {
+    "kind": "custom",
+    "func": "validate.FlexibleServerAdministratorPassword"
+   },
+   "conflicts_with": [
+    "administrator_password"
+   ],
+   "required_with": [
+    "administrator_password_wo_version"
+   ]
+  },
+  "administrator_password_wo_version": {
+   "type": "int",
+   "optional": true,
+   "required_with": [
+    "administrator_password_wo"
+   ]
+  },
+  "backup_retention_days": {
+   "type": "int",
+   "optional": true,
+   "default": 7,
+   "validate": {
+    "kind": "int_range",
+    "min": 1,
+    "max": 35
+   }
+  },
+  "create_mode": {
+   "type": "string",
+   "optional": true,
+   "force_new": true,
+   "validate": {
+    "kind": "enum",
+    "values": [
+     "Default",
+     "GeoRestore",
+     "PointInTimeRestore",
+     "Replica"
+    ],
+    "case_sensitive": true,
+    "source": "servers.PossibleValuesForCreateMode()"
+   }
+  },
+  "customer_managed_key": {
+   "type": "list",
+   "optional": true,
+   "max_items": 1,
+   "block": {
+    "key_vault_key_id": {
+     "type": "string",
+     "optional": true,
+     "validate": {
+      "kind": "custom",
+      "func": "keyvault.ValidateNestedItemID"
+     },
+     "required_with": [
+      "identity",
+      "customer_managed_key.0.primary_user_assigned_identity_id"
+     ]
+    },
+    "primary_user_assigned_identity_id": {
+     "type": "string",
+     "optional": true,
+     "validate": {
+      "kind": "custom",
+      "func": "commonids.ValidateUserAssignedIdentityID"
+     }
+    },
+    "geo_backup_key_vault_key_id": {
+     "type": "string",
+     "optional": true,
+     "validate": {
+      "kind": "custom",
+      "func": "keyvault.ValidateNestedItemID"
+     },
+     "required_with": [
+      "identity",
+      "customer_managed_key.0.geo_backup_user_assigned_identity_id"
+     ]
+    },
+    "geo_backup_user_assigned_identity_id": {
+     "type": "string",
+     "optional": true,
+     "validate": {
+      "kind": "custom",
+      "func": "commonids.ValidateUserAssignedIdentityID"
+     }
+    }
+   }
+  },
+  "delegated_subnet_id": {
+   "type": "string",
+   "optional": true,
+   "force_new": true,
+   "validate": {
+    "kind": "custom",
+    "func": "commonids.ValidateSubnetID"
+   }
+  },
+  "geo_redundant_backup_enabled": {
+   "type": "bool",
+   "optional": true,
+   "force_new": true,
+   "default": false
+  },
+  "high_availability": {
+   "type": "list",
+   "optional": true,
+   "max_items": 1,
+   "block": {
+    "mode": {
+     "type": "string",
+     "required": true,
+     "validate": {
+      "kind": "enum",
+      "values": [
+       "ZoneRedundant",
+       "SameZone"
+      ],
+      "case_sensitive": true
+     }
+    },
+    "standby_availability_zone": {
+     "helper": "commonschema.ZoneSingleOptionalComputed()"
+    }
+   }
+  },
+  "identity": {
+   "helper": "commonschema.UserAssignedIdentityOptional()",
+   "type": "list",
+   "max_items": 1,
+   "required": false,
+   "optional": true,
+   "block": {
+    "type": {
+     "type": "string",
+     "required": true,
+     "validate": {
+      "kind": "enum",
+      "values": [
+       "UserAssigned"
+      ],
+      "source": "commonschema.UserAssignedIdentityOptional (helper)"
+     }
+    },
+    "identity_ids": {
+     "type": "set",
+     "optional": true,
+     "elem": {
+      "type": "string"
+     }
+    },
+    "principal_id": {
+     "type": "string",
+     "computed": true
+    },
+    "tenant_id": {
+     "type": "string",
+     "computed": true
+    }
+   }
+  },
+  "maintenance_window": {
+   "type": "list",
+   "optional": true,
+   "max_items": 1,
+   "block": {
+    "day_of_week": {
+     "type": "int",
+     "optional": true,
+     "default": 0,
+     "validate": {
+      "kind": "int_range",
+      "min": 0,
+      "max": 6
+     }
+    },
+    "start_hour": {
+     "type": "int",
+     "optional": true,
+     "default": 0,
+     "validate": {
+      "kind": "int_range",
+      "min": 0,
+      "max": 23
+     }
+    },
+    "start_minute": {
+     "type": "int",
+     "optional": true,
+     "default": 0,
+     "validate": {
+      "kind": "int_range",
+      "min": 0,
+      "max": 59
+     }
+    }
+   }
+  },
+  "point_in_time_restore_time_in_utc": {
+   "type": "string",
+   "optional": true,
+   "force_new": true,
+   "validate": {
+    "kind": "custom",
+    "func": "validation.IsRFC3339Time"
+   }
+  },
+  "private_dns_zone_id": {
+   "type": "string",
+   "optional": true,
+   "force_new": true,
+   "validate": {
+    "kind": "custom",
+    "func": "privatezones.ValidatePrivateDnsZoneID"
+   }
+  },
+  "public_network_access": {
+   "type": "string",
+   "optional": true,
+   "computed": true,
+   "validate": {
+    "kind": "enum",
+    "values": [
+     "Disabled",
+     "Enabled"
+    ],
+    "case_sensitive": true,
+    "source": "servers.PossibleValuesForEnableStatusEnum()"
+   }
+  },
+  "replication_role": {
+   "type": "string",
+   "optional": true,
+   "computed": true,
+   "validate": {
+    "kind": "enum",
+    "values": [
+     "None"
+    ],
+    "case_sensitive": true
+   }
+  },
+  "sku_name": {
+   "type": "string",
+   "optional": true,
+   "computed": true,
+   "validate": {
+    "kind": "custom",
+    "func": "validate.FlexibleServerSkuName"
+   }
+  },
+  "source_server_id": {
+   "type": "string",
+   "optional": true,
+   "force_new": true,
+   "validate": {
+    "kind": "custom",
+    "func": "servers.ValidateFlexibleServerID"
+   }
+  },
+  "storage": {
+   "type": "list",
+   "optional": true,
+   "computed": true,
+   "max_items": 1,
+   "block": {
+    "auto_grow_enabled": {
+     "type": "bool",
+     "optional": true,
+     "default": true
+    },
+    "iops": {
+     "type": "int",
+     "optional": true,
+     "computed": true,
+     "validate": {
+      "kind": "int_range",
+      "min": 360,
+      "max": 48000
+     }
+    },
+    "log_on_disk_enabled": {
+     "type": "bool",
+     "optional": true,
+     "default": false
+    },
+    "size_gb": {
+     "type": "int",
+     "optional": true,
+     "computed": true,
+     "validate": {
+      "kind": "int_range",
+      "min": 20,
+      "max": 16384
+     }
+    },
+    "io_scaling_enabled": {
+     "type": "bool",
+     "optional": true,
+     "default": false
+    }
+   }
+  },
+  "version": {
+   "type": "string",
+   "optional": true,
+   "computed": true,
+   "validate": {
+    "kind": "enum",
+    "values": [
+     "5.7",
+     "8.0.21",
+     "8.4"
+    ],
+    "case_sensitive": true
+   }
+  },
+  "zone": {
+   "helper": "commonschema.ZoneSingleOptionalComputed()"
+  },
+  "fqdn": {
+   "type": "string",
+   "computed": true
+  },
+  "replica_capacity": {
+   "type": "int",
+   "computed": true
+  },
+  "tags": {
+   "helper": "commonschema.Tags()",
+   "type": "map",
+   "optional": true
+  }
+ },
+ "attributes": [],
+ "crud": {
+  "create": {
+   "api_calls": [
+    {
+     "client": "servers.ServersClient",
+     "method": "Get",
+     "http_method": "GET",
+     "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+     "api_version": "2023-12-30",
+     "long_running": false,
+     "sdk_package": "mysql/2023-12-30/servers"
+    },
+    {
+     "client": "servers.ServersClient",
+     "method": "CreateCallbackThenPoll",
+     "http_method": "PUT",
+     "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+     "api_version": "2023-12-30",
+     "long_running": true,
+     "sdk_package": "mysql/2023-12-30/servers"
+    },
+    {
+     "client": "servers.ServersClient",
+     "method": "UpdateThenPoll",
+     "http_method": "PATCH",
+     "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+     "api_version": "2023-12-30",
+     "long_running": true,
+     "sdk_package": "mysql/2023-12-30/servers"
+    }
+   ],
+   "helpers": [
+    "expandArmServerBackup",
+    "expandArmServerMaintenanceWindow",
+    "expandArmServerNetwork",
+    "expandArmServerStorage",
+    "expandFlexibleServerDataEncryption",
+    "expandFlexibleServerHighAvailability",
+    "expandFlexibleServerIdentity",
+    "expandFlexibleServerSku"
+   ],
+   "mermaid": "flowchart TD\n    n0([\"create azurerm_mysql_flexible_server\"])\n    n1[\"expandArmServerStorage()\"]\n    n2[\"expandFlexibleServerSku()\"]\n    n3[\"expandArmServerStorage(); expandArmServerNetwork(); expandFlexibleServerHighAvailability(); expandArmServerBackup(); expandFlexibleServerDataEncryption()\"]\n    n4[\"expandFlexibleServerIdentity()\"]\n    n5{\"ok\"}\n    n6[\"expandArmServerMaintenanceWindow()\"]\n    n7([\"·\"])\n    n8([\"done\"])\n    n0 --> n1\n    n1 --> n2\n    n2 --> n3\n    n3 --> n4\n    n4 --> n5\n    n5 -->|yes| n6\n    n6 --> n7\n    n5 -->|no| n7\n    n7 --> n8"
+  },
+  "read": {
+   "api_calls": [
+    {
+     "client": "servers.ServersClient",
+     "method": "Get",
+     "http_method": "GET",
+     "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+     "api_version": "2023-12-30",
+     "long_running": false,
+     "sdk_package": "mysql/2023-12-30/servers"
+    }
+   ],
+   "helpers": [],
+   "mermaid": "flowchart TD\n    n0([\"read azurerm_mysql_flexible_server\"])\n    n1([\"done\"])\n    n0 --> n1"
+  },
+  "update": {
+   "api_calls": [
+    {
+     "client": "servers.ServersClient",
+     "method": "Get",
+     "http_method": "GET",
+     "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+     "api_version": "2023-12-30",
+     "long_running": false,
+     "sdk_package": "mysql/2023-12-30/servers"
+    },
+    {
+     "client": "servers.ServersClient",
+     "method": "UpdateThenPoll",
+     "http_method": "PATCH",
+     "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+     "api_version": "2023-12-30",
+     "long_running": true,
+     "sdk_package": "mysql/2023-12-30/servers"
+    },
+    {
+     "client": "serverfailover.ServerFailoverClient",
+     "method": "ServersFailoverThenPoll",
+     "http_method": "POST",
+     "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}/failover",
+     "api_version": "2023-12-30",
+     "long_running": true,
+     "sdk_package": "mysql/2023-12-30/serverfailover"
+    }
+   ],
+   "helpers": [
+    "expandArmServerBackup",
+    "expandArmServerMaintenanceWindow",
+    "expandArmServerStorage",
+    "expandFlexibleServerDataEncryption",
+    "expandFlexibleServerHighAvailability",
+    "expandFlexibleServerIdentity",
+    "expandFlexibleServerSku"
+   ],
+   "mermaid": "flowchart TD\n    n0([\"update azurerm_mysql_flexible_server\"])\n    n1{\"d.HasChange('storage') && d.Get('storage.0.au…\"}\n    n2[\"expandArmServerStorage()\"]\n    n3([\"·\"])\n    n4{\"requireFailover\"}\n    n5([\"·\"])\n    n6{\"d.HasChanges('backup_retention_days', 'geo_re…\"}\n    n7[\"expandArmServerBackup()\"]\n    n8([\"·\"])\n    n9{\"d.HasChange('customer_managed_key')\"}\n    n10[\"expandFlexibleServerDataEncryption()\"]\n    n11([\"·\"])\n    n12{\"d.HasChange('identity')\"}\n    n13[\"expandFlexibleServerIdentity()\"]\n    n14([\"·\"])\n    n15{\"d.HasChange('maintenance_window')\"}\n    n16[\"expandArmServerMaintenanceWindow()\"]\n    n17([\"·\"])\n    n18{\"d.HasChange('sku_name')\"}\n    n19[\"expandFlexibleServerSku()\"]\n    n20([\"·\"])\n    n21{\"d.HasChange('storage') && !d.Get('storage.0.a…\"}\n    n22[\"expandArmServerStorage()\"]\n    n23([\"·\"])\n    n24([\"done\"])\n    n0 --> n1\n    n1 -->|yes| n2\n    n2 --> n3\n    n1 -->|no| n3\n    n3 --> n4\n    n4 --> n5\n    n4 -->|no| n5\n    n5 --> n6\n    n6 -->|yes| n7\n    n7 --> n8\n    n6 -->|no| n8\n    n8 --> n9\n    n9 -->|yes| n10\n    n10 --> n11\n    n9 -->|no| n11\n    n11 --> n12\n    n12 -->|yes| n13\n    n13 --> n14\n    n12 -->|no| n14\n    n14 --> n15\n    n15 -->|yes| n16\n    n16 --> n17\n    n15 -->|no| n17\n    n17 --> n18\n    n18 -->|yes| n19\n    n19 --> n20\n    n18 -->|no| n20\n    n20 --> n21\n    n21 -->|yes| n22\n    n22 --> n23\n    n21 -->|no| n23\n    n23 --> n24"
+  },
+  "delete": {
+   "api_calls": [
+    {
+     "client": "servers.ServersClient",
+     "method": "DeleteThenPoll",
+     "http_method": "DELETE",
+     "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+     "api_version": "2023-12-30",
+     "long_running": true,
+     "sdk_package": "mysql/2023-12-30/servers"
+    }
+   ],
+   "helpers": [],
+   "mermaid": "flowchart TD\n    n0([\"delete azurerm_mysql_flexible_server\"])\n    n1([\"done\"])\n    n0 --> n1"
+  }
+ },
+ "api_calls": [
+  {
+   "client": "servers.ServersClient",
+   "method": "Get",
+   "http_method": "GET",
+   "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+   "api_version": "2023-12-30",
+   "long_running": false,
+   "sdk_package": "mysql/2023-12-30/servers"
+  },
+  {
+   "client": "servers.ServersClient",
+   "method": "CreateCallbackThenPoll",
+   "http_method": "PUT",
+   "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+   "api_version": "2023-12-30",
+   "long_running": true,
+   "sdk_package": "mysql/2023-12-30/servers"
+  },
+  {
+   "client": "servers.ServersClient",
+   "method": "UpdateThenPoll",
+   "http_method": "PATCH",
+   "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+   "api_version": "2023-12-30",
+   "long_running": true,
+   "sdk_package": "mysql/2023-12-30/servers"
+  },
+  {
+   "client": "serverfailover.ServerFailoverClient",
+   "method": "ServersFailoverThenPoll",
+   "http_method": "POST",
+   "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}/failover",
+   "api_version": "2023-12-30",
+   "long_running": true,
+   "sdk_package": "mysql/2023-12-30/serverfailover"
+  },
+  {
+   "client": "servers.ServersClient",
+   "method": "DeleteThenPoll",
+   "http_method": "DELETE",
+   "path": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DBforMySQL/flexibleServers/{flexibleServerName}",
+   "api_version": "2023-12-30",
+   "long_running": true,
+   "sdk_package": "mysql/2023-12-30/servers"
+  }
+ ],
+ "unresolved": []
+}
