@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from .azcli import to_markdown as azcli_to_markdown
 from .chunker import Chunk, DocInfo, chunk_page
 from .config import Config, Repo
+from .docfxmeta import file_metadata
 from .frontmatter import parse_page
 from .includes import IncludeResolver
 from .normalize import normalize
@@ -42,6 +43,8 @@ class Processor:
             if raw is None:                 # malformed reference YAML: skip this page, never abort the build
                 return None
         page = parse_page(raw)
+        for k, v in file_metadata(self.repo.path, path.resolve().relative_to(self.repo.path.resolve()).as_posix()).items():
+            page.meta.setdefault(k, v)             # Learn applies docfx.json fileMetadata to pages whose front matter lacks the key
         return path, page, self.resolver.resolve(page.body, path)
 
     def deps(self, rel: str) -> set[str] | None:

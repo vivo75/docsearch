@@ -50,9 +50,8 @@ top = 5
 id = "aks-nginx-retirement"
 service = "azure-kubernetes-service"
 question = "NGINX ingress controller web application routing add-on retirement, Ingress NGINX end of support, migrate to Gateway API or Application Gateway for Containers"
-# fails because the page has service: null and the filter excludes it (Backlog 5)
+# was a known gap (page had no ms.service, the service filter excluded it); fixed by docfx.json fileMetadata (Backlog 5)
 expect = ["azure-aks-docs/articles/aks/app-routing-nginx-to-gateway-api-migration.md"]
-known_gap = true
 
 [[query]]
 id = "aks-pipelines-private"
