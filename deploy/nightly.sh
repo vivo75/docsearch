@@ -16,6 +16,8 @@ flock -n 9 || { echo "$(date -Is) another update is running" >> data/nightly.log
   .venv/bin/python eval/convert_aks_releases.py --pull || echo "aks release notes convert failed"
   .venv/bin/python eval/convert_k8s.py --pull || echo "kubernetes docs convert failed"
   .venv/bin/docsearch update --pull --canary
+  # the exact-vector matrix (.npy) must agree with the index that is now live: sizes, rowid set, sampled rows (never fails the run, but says so)
+  .venv/bin/docsearch vecmat --check || echo "vecmat check FAILED: see the report above (rebuild with: docsearch vecmat)"
   # the MCP server reads repos.toml once at start (grep_docs roots, repo weights): restart it if the file changed since
   started=$(date -d "$(systemctl --user show docsearch-mcp -p ActiveEnterTimestamp --value)" +%s 2>/dev/null || echo 0)
   if [ "$(stat -c %Y repos.toml)" -gt "$started" ]; then systemctl --user restart docsearch-mcp || echo "mcp restart failed"; fi

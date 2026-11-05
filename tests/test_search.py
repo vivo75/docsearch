@@ -417,3 +417,14 @@ def test_vecmat_check_finds_a_different_rowid_set(idx):
     np.save(rp, r)
     assert vecmat.load(idx) is not None
     assert any("rowid sets differ" in p for p in vecmat.check(idx)["problems"])
+
+
+def test_status_resource_reports_code_head(idx):
+    import json
+    from docsearch.server import make_server
+    srv = make_server(idx)
+    r = asyncio.run(srv.read_resource("docsearch://status"))
+    st = json.loads(r[0].content if hasattr(r[0], "content") else r[0])
+    c = st["code"]
+    assert len(c["head"]) == 40 and c["head_now"] == c["head"] and c["stale"] is False and c["started_at"] and "dirty" in c
+    assert "vecmat" in st and "docs" in st
