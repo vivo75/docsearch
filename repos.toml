@@ -156,3 +156,11 @@ name = "aks-release-notes"
 url_base = "https://github.com/Azure/AKS"
 docs_root = "."
 weight = 1.0
+
+# Kubernetes upstream (kubernetes.io): docs/concepts, docs/tasks, API deprecation guide, releases/*, release + deprecation blog posts.
+# `eval/convert_k8s.py` rewrites the Hugo shortcodes of the sparse clone ../kubernetes-website into ../kubernetes-docs (laid out like the site URLs).
+[[repo]]
+name = "kubernetes-docs"
+url_base = "https://kubernetes.io"
+docs_root = "."
+weight = 1.0
