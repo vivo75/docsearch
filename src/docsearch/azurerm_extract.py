@@ -339,8 +339,11 @@ def custom_validator(s: Src, fn: str, ctx: dict) -> dict:
         for f in sorted((d / "validate").glob("*.go")) if (d / "validate").is_dir() else []:
             txt = f.read_text(encoding="utf-8")
             m = re.search(rf"^func {re.escape(short)}\b.*?^\}}", txt, re.S | re.M)
-            if m and m.group(0).count("\n") <= 45:
-                out["source"] = m.group(0)
+            if m:
+                # only derived facts: the signature line, its length and the regular expressions it compiles; never the body itself
+                out["defined_in"] = f"{f.relative_to(PROVIDER).as_posix()}:{txt[:m.start()].count(chr(10)) + 1}"
+                out["signature"] = m.group(0).splitlines()[0]
+                out["body_lines"] = m.group(0).count("\n")
                 rx = re.findall(r'regexp\.MustCompile\(((?:`[^`]*`)|(?:"[^"]*"))\)', m.group(0))
                 if rx:
                     out["patterns"] = [r.strip("`\"") for r in rx]
