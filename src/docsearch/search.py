@@ -12,10 +12,14 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 
-from . import store, vecmat
+from pathlib import Path
+
+from . import conflicts, store, vecmat
 from .chunker import count_tokens, truncate_tokens
 from .urls import normalize_url
 from .variants import infer_variants, variant_matches
+
+CONFLICTS_FILE = Path(__file__).resolve().parents[2] / "conflicts.toml"
 
 RRF_K = 60
 CANDIDATES = 50
@@ -236,6 +240,10 @@ class Searcher:
             db.close()
             raise
         self._real, self.db, self.meta, self.vecmat, self._services = real, db, meta, vm, services
+        try:
+            self._conflicts = conflicts.active(db, conflicts.load(CONFLICTS_FILE))
+        except sqlite3.Error:
+            self._conflicts = []
         self._gen = getattr(self, "_gen", 0) + 1             # rows and toc ids of an older generation must not meet this connection
 
     def _reopen_if_swapped(self) -> None:
@@ -394,6 +402,7 @@ class Searcher:
             same = gen == self._gen            # not reopened here: rows of the old index must not meet the new connection
             rendered = self._render(hits, max_tokens, toc=same)
         warnings.extend(stale_warnings(rendered))
+        warnings.extend(conflicts.notes(getattr(self, "_conflicts", []), {h["source"] for h in rendered}))
         if hits:
             miss = uncovered_literals(query, [f"{h.row['title']} {h.row['heading_path']} {h.row['text']}" for h in hits], extras or [])
             if miss:

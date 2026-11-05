@@ -1,0 +1,30 @@
+# Curated notes for places where two indexed Microsoft pages disagree (Backlog 8). A note is attached to `warnings` of a search that returns any of
+# its `pages`, and only while every `evidence` phrase is still present in the indexed page (checked when an index is opened; markdown `_` and `*` ignored,
+# case-insensitive). When Microsoft fixes a page the evidence disappears and the note switches itself off. Write notes as facts about the pages,
+# not as advice about the user's system.
+
+[[conflict]]
+id = "aks-skip-minor-versions"
+pages = [
+  "azure-aks-docs/articles/aks/platform-initiated-upgrades.md",
+  "azure-aks-docs/articles/aks/upgrade-aks-control-plane.md",
+  "azure-aks-docs/articles/aks/supported-kubernetes-versions.md",
+]
+evidence = [
+  { page = "azure-aks-docs/articles/aks/platform-initiated-upgrades.md", text = "one minor version at a time" },
+  { page = "azure-aks-docs/articles/aks/supported-kubernetes-versions.md", text = "Lowest supported community version" },
+]
+note = "Sources disagree on skipping Kubernetes minor versions. platform-initiated-upgrades and upgrade-aks-control-plane say a control plane moves one minor version at a time (no skipping for a supported non-LTS cluster); the FAQ table in supported-kubernetes-versions also lets an UNSUPPORTED non-LTS cluster go straight to the lowest supported community version (an 'unsupported recovery path' that needs a full-cluster upgrade) and LTS to a higher LTS. Which rule applies depends on the cluster's current support state; check the offered targets (`az aks get-upgrades`) before planning."
+
+[[conflict]]
+id = "aks-nodepool-version-skew"
+pages = [
+  "azure-aks-docs/articles/aks/upgrade-node-pools.md",
+  "azure-aks-docs/articles/aks/upgrade-aks-control-plane.md",
+  "azure-aks-docs/articles/aks/supported-kubernetes-versions.md",
+]
+evidence = [
+  { page = "azure-aks-docs/articles/aks/upgrade-node-pools.md", text = "within two minor versions of the control plane" },
+  { page = "azure-aks-docs/articles/aks/upgrade-aks-control-plane.md", text = "up to three minor versions ahead of node pools" },
+]
+note = "Sources disagree on control-plane / node-pool version skew. upgrade-node-pools (ms_date 2023) says a node pool must be within two minor versions of the control plane; upgrade-aks-control-plane and supported-kubernetes-versions say that from Kubernetes 1.28 the control plane can be up to three minor versions ahead. The newer pages follow the current upstream skew policy."
