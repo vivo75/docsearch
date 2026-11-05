@@ -9,6 +9,7 @@ Everything that cannot be resolved statically is reported in `unresolved` instea
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import urllib.request
@@ -18,10 +19,11 @@ import tree_sitter_go
 from tree_sitter import Language, Node, Parser
 
 HERE = Path(__file__).resolve().parents[2]
-PROVIDER = HERE.parent.parent / "terraform-provider-azurerm"
+PROVIDER = Path(os.environ.get("DOCSEARCH_AZURERM_SRC", HERE.parent.parent / "terraform-provider-azurerm"))
 CACHE = HERE / "data" / "azurerm-cache"
 _PARSER = Parser(Language(tree_sitter_go.language()))
 CRUD = ("create", "read", "update", "delete")
+_SCHEMA_MAP = re.compile(r"map\[string\]\*\w+\.Schema")
 SDK_METHOD_NOISE = {"Get", "Create", "CreateOrUpdate", "Update", "Delete", "List", "ListByResourceGroup", "ListBySubscription"}
 
 
@@ -94,7 +96,7 @@ def resolve_call(s: Src, call: Node, ctx: dict) -> tuple[Src, Node] | None:
     """Declaration of the function a call expression invokes: same package, or a package of the provider (`helpers.X()`)."""
     fn = s.t(call.child_by_field_name("function"))
     if "." not in fn:
-        return ctx.get("pkg_funcs", {}).get(fn)
+        return dir_funcs(s.path.parent).get(fn) or ctx.get("pkg_funcs", {}).get(fn)
     alias, _, name = fn.partition(".")
     imp = s.imports.get(alias, "")
     if "terraform-provider-azurerm/internal/" in imp and "." not in name:
@@ -107,11 +109,43 @@ def returned_literal(ent: tuple[Src, Node], want: str) -> tuple[Src, Node] | Non
     fs, decl = ent
     for lit in fs.walk(decl, "composite_literal"):
         tx = fs.t(lit)
-        if want == "map" and tx.startswith("map[string]*pluginsdk.Schema"):
+        if want == "map" and _SCHEMA_MAP.match(tx):
             return fs, lit.child_by_field_name("body")
         if want == "schema" and fs.t(lit.child_by_field_name("type")).endswith(".Schema") and not tx.startswith("map["):
             return fs, lit.child_by_field_name("body")
     return None
+
+
+def build_map(fs: Src, decl: Node, ctx: dict, depth: int = 0) -> dict | None:
+    """Arguments built by a function: its map literal, plus `m["key"] = ...` additions and maps merged with `for k, v := range other()`."""
+    base = None
+    for lit in fs.walk(decl, "composite_literal"):
+        if _SCHEMA_MAP.match(fs.t(lit)):
+            base = lit.child_by_field_name("body"); break
+    out = parse_schema_map(fs, base, ctx) if base is not None else {}
+    for a in fs.walk(decl, "assignment_statement"):
+        left, right = a.child_by_field_name("left"), a.child_by_field_name("right")
+        if left is None or right is None or not left.named_children:
+            continue
+        l = left.named_children[0]
+        if l.type == "index_expression":
+            key = _lit(fs, l.named_children[-1])
+            if isinstance(key, str) and key.isidentifier():
+                v = right.named_children[0] if right.named_children else right
+                body = _composite(v)
+                if body is not None and v.type != "call_expression":
+                    out[key] = parse_schema_entry(fs, body, ctx)
+    if depth < 3:
+        for r in fs.walk(decl, "for_statement"):
+            rc = next((c for c in r.children if c.type == "range_clause"), None)
+            call = rc.child_by_field_name("right") if rc is not None else None
+            if call is not None and call.type == "call_expression":
+                ent = resolve_call(fs, call, ctx)
+                if ent:
+                    sub = build_map(ent[0], ent[1], ctx, depth + 1)
+                    for k, v in (sub or {}).items():
+                        out.setdefault(k, v)
+    return out or None
 
 
 def _lit(s: Src, n: Node | None):
@@ -222,6 +256,68 @@ def sdk_const(import_path: str, const_name: str) -> str | None:
     return m.group(1) if m else None
 
 
+def package_const(d: Path, const_name: str) -> str | None:
+    """String constant declared in a provider package directory."""
+    for f in sorted(d.glob("*.go")) if d.is_dir() else []:
+        m = re.search(rf'^\s*(?:const\s+)?{re.escape(const_name)}\s*(?:\w+\s*)?=\s*"([^"]*)"', f.read_text(encoding="utf-8", errors="replace"), re.M)
+        if m:
+            return m.group(1)
+    return None
+
+
+def string_list(s: Src, node: Node, ctx: dict) -> tuple[list[str] | None, list[str]]:
+    """Strings of a list expression: a literal, a call to a function that returns a literal, or a package variable. -> (values or None, unresolved items)."""
+    lit = None
+    if node.type == "composite_literal":
+        lit, owner = node.child_by_field_name("body"), s
+    elif node.type == "call_expression":
+        ent = resolve_call(s, node, ctx)
+        if ent:
+            owner = ent[0]
+            lits = [c for c in owner.walk(ent[1], "composite_literal") if owner.t(c).startswith("[]string")]
+            if lits:
+                lit = lits[0].child_by_field_name("body")
+            else:                                             # `return append(a(), b()...)`: concatenate what the called functions return
+                vals, unres = [], []
+                for c in sorted(owner.walk(ent[1], "call_expression"), key=lambda n: n.start_byte):
+                    if owner.t(c.child_by_field_name("function")) in ("append", "string"):
+                        continue
+                    v2, u2 = string_list(owner, c, ctx)
+                    if v2:
+                        vals += [x for x in v2 if x not in vals]
+                    unres += u2
+                return (vals or None), unres
+    elif node.type == "identifier":
+        name = s.t(node)
+        for g in sorted(s.path.parent.glob("*.go")):
+            gs = src_of(g)
+            for v in gs.walk(gs.root, "var_spec", "const_spec"):
+                if gs.t(v.child_by_field_name("name")) == name:
+                    for c in gs.walk(v, "composite_literal"):
+                        if gs.t(c).startswith("[]string"):
+                            lit, owner = c.child_by_field_name("body"), gs; break
+                if lit is not None:
+                    break
+            if lit is not None:
+                break
+    if lit is None:
+        return None, [s.t(node)[:60]]
+    vals, unres = [], []
+    for e in _elements(lit):
+        if e.type in ("interpreted_string_literal", "raw_string_literal"):
+            vals.append(_lit(owner, e)); continue
+        ref = owner.t(e.child_by_field_name("arguments").named_children[0]) if e.type == "call_expression" and e.child_by_field_name("arguments") and e.child_by_field_name("arguments").named_children else owner.t(e)
+        p, _, c = ref.partition(".")
+        v = (sdk_const(owner.imports.get(p, ""), c) if c else None) or (package_const(owner.path.parent, ref) if not c else None)
+        if v is None and c and "internal/" in owner.imports.get(p, ""):
+            v = local_const(owner.imports[p], c)
+        if v is None:
+            unres.append(ref)
+        else:
+            vals.append(v)
+    return vals, unres
+
+
 def local_const(import_path: str, const_name: str) -> str | None:
     """String constant of a package inside the provider (`internal/services/<svc>/validate`)."""
     d = PROVIDER / import_path.split("terraform-provider-azurerm/", 1)[-1]
@@ -327,13 +423,19 @@ def parse_validate(s: Src, n: Node, ctx: dict) -> dict:
             p, _, m = f2.partition(".")
             tn = re.sub(r"^PossibleValuesFor", "", m)
             vals = sdk_enum(s.imports.get(p, ""), tn) if m.startswith("PossibleValuesFor") else None
+            if vals is None:
+                vals, _u = string_list(s, a, ctx)
             out["values"] = vals
             out["source"] = f2 + "()"
             if vals is None:
                 ctx["unresolved"].append(f"enum {f2}()")
         else:
-            out["source"] = s.t(a)
-            ctx["unresolved"].append(f"enum {s.t(a)}")
+            vals, unres = string_list(s, a, ctx)
+            out["values"], out["source"] = vals, s.t(a)[:60]
+            if vals is None or unres:
+                ctx["unresolved"].append(f"enum {s.t(a)[:50]}")
+                if unres:
+                    out["unresolved"] = unres
         return out
     if name in ("IntBetween", "FloatBetween", "StringLenBetween", "IntAtLeast", "IntAtMost", "IntNotInSlice") and pkg == "validation":
         vals = [_lit(s, a) for a in args]
@@ -399,7 +501,19 @@ def helper_hint(call: str) -> dict:
              "commonschema.LocationOptional": {"type": "string", "optional": True, "force_new": True},
              "commonschema.LocationComputed": {"type": "string", "computed": True},
              "tags.Schema": {"type": "map", "optional": True}, "commonschema.Tags": {"type": "map", "optional": True},
-             "commonschema.TagsDataSource": {"type": "map", "computed": True}}
+             "commonschema.TagsDataSource": {"type": "map", "computed": True},
+             "commonschema.LocationWithoutForceNew": {"type": "string", "required": True},
+             "commonschema.ZoneSingleOptional": {"type": "string", "optional": True},
+             "commonschema.ZoneSingleOptionalForceNew": {"type": "string", "optional": True, "force_new": True},
+             "commonschema.ZoneSingleOptionalComputed": {"type": "string", "optional": True, "computed": True},
+             "commonschema.ZoneSingleRequired": {"type": "string", "required": True},
+             "commonschema.ZonesMultipleOptional": {"type": "set", "optional": True, "elem": {"type": "string"}},
+             "commonschema.ZonesMultipleOptionalForceNew": {"type": "set", "optional": True, "force_new": True, "elem": {"type": "string"}},
+             "commonschema.ZonesMultipleRequired": {"type": "set", "required": True, "elem": {"type": "string"}},
+             "commonschema.EdgeZoneOptionalForceNew": {"type": "string", "optional": True, "force_new": True},
+             "commonschema.EdgeZoneComputed": {"type": "string", "computed": True},
+             "commonschema.ResourceIDReferenceRequired": {"type": "string", "required": True, "note": "Azure resource ID"},
+             "commonschema.ResourceIDReferenceOptional": {"type": "string", "optional": True, "note": "Azure resource ID"}}
     m = re.match(r"commonschema\.(SystemAssigned|UserAssigned|SystemOrUserAssigned|SystemAssignedUserAssigned)Identity(Optional|Required|Computed|ForceNew\w*|Optional\w*)?", c)
     if m and "Computed" not in c:
         kind = m.group(1)
@@ -439,13 +553,17 @@ def parse_schema_entry(s: Src, lv: Node, ctx: dict) -> dict:
             t = s.t(f["Elem"].named_children[-1].child_by_field_name("type")) if f["Elem"].type == "unary_expression" and f["Elem"].named_children[-1].type == "composite_literal" else ""
             inner = _kv(s, body)
             sv = inner.get("Schema")
-            if sv is not None and sv.type == "call_expression" and t.endswith("Resource"):
-                ent = resolve_call(s, sv, ctx)
-                got = returned_literal(ent, "map") if ent else None
-                if got:
-                    e["block"] = parse_schema_map(got[0], got[1], ctx)
+            if sv is not None and sv.type in ("call_expression", "func_literal") and t.endswith("Resource"):
+                fn = sv.child_by_field_name("function") if sv.type == "call_expression" else None
+                if sv.type == "func_literal" or (fn is not None and fn.type == "func_literal"):
+                    got = build_map(s, fn if fn is not None else sv, ctx)       # `func() map[...]{ ... return m }()`
                 else:
-                    ctx["unresolved"].append(f"nested schema {s.t(sv)[:50]}")
+                    ent = resolve_call(s, sv, ctx)
+                    got = build_map(ent[0], ent[1], ctx) if ent else None
+                if got:
+                    e["block"] = got
+                else:
+                    ctx["unresolved"].append(f"nested schema {s.t(sv)[:50].splitlines()[0]}")
             elif "Schema" in inner and (m := _composite(inner["Schema"])) is not None and t.endswith("Resource"):
                 e["block"] = parse_schema_map(s, m, ctx)
             else:
@@ -465,7 +583,7 @@ def find_object(name: str, kind: str = "resource") -> tuple[Path, str, str] | No
         txt = f.read_text(encoding="utf-8", errors="replace")
         if key not in txt:
             continue
-        if f.name != "registration.go" and not f.name.endswith(suffix):
+        if f.name != "registration.go" and not (f.name.endswith(suffix) or f.name == suffix[1:]):
             continue
         m = re.search(rf"func \((?:\w+ )?(\*?\w+)\) ResourceType\(\) string \{{\s*return {re.escape(key)}", txt)
         if m:
@@ -518,8 +636,9 @@ def meta_client(import_path: str) -> dict[str, tuple[str, str]]:
     return {f: (imps[pk], t) for f, pk, t in re.findall(r"^\s*(\w+)\s+\*(\w+)\.(\w+)\s*$", txt, re.M) if pk in imps}
 
 
-def calls_in(s: Src, body: Node, clients: dict, helpers: set[str], ctx: dict) -> list[dict]:
-    """Ordered API calls and helper calls inside a function body."""
+def calls_in(s: Src, body: Node, clients: dict, helpers: set[str], ctx: dict, depth: int = 0, seen: set | None = None) -> list[dict]:
+    """Ordered API calls and helper calls inside a function body; calls to other functions of the package are followed two levels deep."""
+    seen = set() if seen is None else seen
     var_chain: dict[str, str] = {}
     for a in s.walk(body, "short_var_declaration", "assignment_statement"):
         left, right = a.child_by_field_name("left"), a.child_by_field_name("right")
@@ -549,6 +668,44 @@ def calls_in(s: Src, body: Node, clients: dict, helpers: set[str], ctx: dict) ->
             nm = s.t(fn)
             if nm in helpers:
                 out.append({"kind": "helper", "name": nm, "pos": c.start_byte})
+    if depth < 2:                                                  # shared create/delete helpers: the client is often used one call below
+        pf = ctx.get("pkg_funcs", {})
+        for c in sorted(s.walk(body, "call_expression"), key=lambda n: n.start_byte):
+            fn = c.child_by_field_name("function")
+            if fn is None:
+                continue
+            if fn.type == "identifier":
+                key = s.t(fn)
+            elif fn.type == "selector_expression" and s.t(fn.child_by_field_name("operand")) in s.imports and \
+                    "terraform-provider-azurerm/internal/services" in s.imports[s.t(fn.child_by_field_name("operand"))]:
+                imp = s.imports[s.t(fn.child_by_field_name("operand"))]               # a function of another provider package: follow it too
+                key = ""
+                ent = dir_funcs(PROVIDER / imp.split("terraform-provider-azurerm/", 1)[-1]).get(s.t(fn.child_by_field_name("field")))
+                tag_ = imp + "." + s.t(fn.child_by_field_name("field"))
+                if ent and tag_ not in seen:
+                    seen.add(tag_)
+                    sub_body = ent[1].child_by_field_name("body")
+                    if sub_body is not None:
+                        sub_ctx = {**ctx, "pkg_funcs": dir_funcs(ent[0].path.parent)}
+                        for x in calls_in(ent[0], sub_body, clients, helpers, sub_ctx, depth + 1, seen):
+                            if x["kind"] == "api":
+                                out.append({**x, "pos": c.start_byte})
+                continue
+            elif fn.type == "selector_expression" and s.t(fn.child_by_field_name("operand")) in ("r", "a", "m", "s", "res"):
+                mname = s.t(fn.child_by_field_name("field"))
+                cands = [k for k in pf if k.endswith("." + mname)]
+                key = cands[0] if len(cands) == 1 else ""
+            else:
+                continue
+            ent = pf.get(key)
+            if ent and key not in seen and key not in helpers and not re.match(r"(expand|flatten)", key.split(".")[-1]):
+                seen.add(key)
+                sub_body = ent[1].child_by_field_name("body")
+                if sub_body is not None:
+                    for x in calls_in(ent[0], sub_body, clients, helpers, ctx, depth + 1, seen):
+                        if x["kind"] == "api":
+                            out.append({**x, "pos": c.start_byte})
+    out.sort(key=lambda x: x["pos"])
     return out
 
 
@@ -584,7 +741,7 @@ def mermaid(s: Src, body: Node, clients: dict, helpers: set[str], title: str, ct
 
     def step_calls(n: Node) -> list[str]:
         out = []
-        for c in calls_in(s, n, clients, helpers, {"unresolved": []}):
+        for c in calls_in(s, n, clients, helpers, {**ctx, "unresolved": []}):
             out.append((f"{c['http_method'] or '?'} {c['client'].split('.')[0]}.{c['method']}" if c["kind"] == "api" else f"{c['name']}()"))
         return out
 
@@ -640,7 +797,7 @@ def mermaid(s: Src, body: Node, clients: dict, helpers: set[str], title: str, ct
 def extract(name: str, kind: str = "resource") -> dict:
     found = find_object(name, kind)
     if not found:
-        return {"error": f"{name}: not found in the provider checkout ({PROVIDER})"}
+        return {"error": f"{name}: not found in the provider source"}
     path, style, entry = found
     s = Src(path)
     svc_dir = PROVIDER / "internal" / "services" / path.relative_to(PROVIDER / "internal" / "services").parts[0]
@@ -662,7 +819,7 @@ def extract(name: str, kind: str = "resource") -> dict:
             ent = pkg_funcs.get(f"{entry}.{meth}")
             if ent:
                 for lit in ent[0].walk(ent[1], "composite_literal"):
-                    if ent[0].t(lit).startswith("map[string]*pluginsdk.Schema"):
+                    if _SCHEMA_MAP.match(ent[0].t(lit)):
                         m = parse_schema_map(ent[0], lit.child_by_field_name("body"), ctx)
                         if key == "arguments":
                             out["arguments"] = m
@@ -683,13 +840,19 @@ def extract(name: str, kind: str = "resource") -> dict:
             out["error"] = "resource literal not found"; return out
         sch = res.get("Schema")
         lv, ls = (_composite(sch) if sch is not None and sch.type != "call_expression" else None), s
-        if lv is None and sch is not None and sch.type == "call_expression":
-            ent = resolve_call(s, sch, ctx)
-            got = returned_literal(ent, "map") if ent else None
-            if got:
-                ls, lv = got                                                                  # the literal belongs to the file that defines the function
         if lv is not None:
             out["arguments"] = parse_schema_map(ls, lv, ctx)
+        elif sch is not None and sch.type == "call_expression":
+            ent = resolve_call(s, sch, ctx)
+            out["arguments"] = (build_map(ent[0], ent[1], ctx) if ent else None) or {}
+        for call in sorted(s.walk(ctor[1], "call_expression"), key=lambda n: n.start_byte):          # maps.Copy(resource.Schema, extra())
+            if s.t(call.child_by_field_name("function")) in ("maps.Copy", "utils.MergeSchemas"):
+                args = call.child_by_field_name("arguments").named_children
+                if len(args) == 2 and args[1].type == "call_expression":
+                    ent = resolve_call(s, args[1], ctx)
+                    extra = build_map(ent[0], ent[1], ctx) if ent else None
+                    for k, v in (extra or {}).items():
+                        out["arguments"].setdefault(k, v)
         for c in CRUD:
             for key in (c.capitalize(), c.capitalize() + "Context"):
                 if key in res:
@@ -703,5 +866,67 @@ def extract(name: str, kind: str = "resource") -> dict:
         out["crud"][c] = {"api_calls": api_summary(calls), "helpers": sorted({x["name"] for x in calls if x["kind"] == "helper"}),
                           "mermaid": mermaid(bs, body, clients, helpers, f"{c} {name}", ctx)}
     out["api_calls"] = api_summary(allcalls)
+    if bodies and not out["api_calls"]:
+        ctx["unresolved"].append("no Azure API call found statically: the code delegates to helpers or to a client this extractor does not follow")
     out["unresolved"] = sorted(set(ctx["unresolved"]))
     return out
+
+
+# ------------------------------------------------------------------ tool view
+_NAME = re.compile(r"azurerm_[a-z0-9_]+")
+_cache: dict[tuple[str, str], dict] = {}
+
+
+def _compact(args: dict) -> dict:
+    """Top level only: nested blocks are replaced by the list of their argument names."""
+    out = {}
+    for k, v in args.items():
+        e = {x: y for x, y in v.items() if x != "block"}
+        if "block" in v:
+            e["block_arguments"] = sorted(v["block"])
+        out[k] = e
+    return out
+
+
+def _find(args: dict, path: str) -> dict | None:
+    cur: dict | None = {"block": args}
+    for part in path.split("."):
+        if cur is None:
+            return None
+        nxt = (cur.get("block") or (cur.get("elem") or {}).get("block") or {}).get(part)
+        cur = nxt
+    return cur
+
+
+def describe(name: str, kind: str = "resource", section: str = "summary", operation: str | None = None, argument: str | None = None) -> dict:
+    """What the MCP tool returns. Facts derived from the provider code only: no source text. section: summary | arguments | api | flow."""
+    if not _NAME.fullmatch(name or ""):
+        return {"error": "name must look like azurerm_<something> (lowercase, digits, underscores)"}
+    if kind not in ("resource", "data_source"):
+        return {"error": "kind must be 'resource' or 'data_source'"}
+    if not (PROVIDER / "internal" / "services").is_dir():
+        return {"error": "the provider source is not available on this server"}
+    r = _cache.get((name, kind))
+    if r is None:
+        r = _cache[(name, kind)] = extract(name, kind)
+    if "error" in r:
+        return r
+    head = {"resource": r["resource"], "kind": kind, "style": r["style"], "defined_in": r["defined_in"], "provenance": r["provenance"]}
+    if section == "arguments":
+        if argument:
+            e = _find(r["arguments"], argument)
+            return {**head, "argument": argument, "detail": e} if e is not None else {**head, "error": f"no argument {argument!r}; top level: {sorted(r['arguments'])}"}
+        return {**head, "arguments": _compact(r["arguments"]), "hint": "pass argument='block.child' (dotted path) for the full detail of one argument"}
+    if section == "api":
+        return {**head, "api_calls": r["api_calls"], "by_operation": {c: v["api_calls"] for c, v in r["crud"].items()}}
+    if section == "flow":
+        if operation not in r["crud"]:
+            return {**head, "error": f"operation must be one of {sorted(r['crud'])}"}
+        c = r["crud"][operation]
+        return {**head, "operation": operation, "diagram": c["mermaid"], "diagram_format": "mermaid flowchart", "api_calls": c["api_calls"], "helper_functions": c["helpers"],
+                "unresolved": [u for u in r["unresolved"] if operation in u]}
+    top = r["arguments"]
+    return {**head, "counts": {"arguments": len(top), "required": sorted(k for k, v in top.items() if v.get("required")),
+                               "blocks": sorted(k for k, v in top.items() if "block" in v), "api_calls": len(r["api_calls"])},
+            "force_new": sorted(k for k, v in top.items() if v.get("force_new")), "api_calls": r["api_calls"], "operations": sorted(r["crud"]),
+            "unresolved": r["unresolved"], "hint": "section='arguments' (types, defaults, allowed values), section='api', section='flow' with operation=create|read|update|delete"}

@@ -6,7 +6,7 @@
   "doc_args": 40,
   "matched": 40,
   "req_agree": 39,
-  "doc_enums": 5,
+  "doc_enums": 8,
   "enum_extracted": 3,
   "enum_agree": 3,
   "api": 5,
@@ -20,34 +20,25 @@
  {
   "name": "azurerm_kubernetes_cluster",
   "style": "untyped",
-  "code_args": 182,
+  "code_args": 269,
   "doc_args": 267,
-  "matched": 163,
-  "req_agree": 162,
-  "doc_enums": 19,
-  "enum_extracted": 16,
-  "enum_agree": 15,
+  "matched": 250,
+  "req_agree": 250,
+  "doc_enums": 34,
+  "enum_extracted": 27,
+  "enum_agree": 27,
   "api": 13,
-  "unresolved": 2,
+  "unresolved": 1,
   "missing_in_code": [
    "aci_connector_linux",
-   "allowed_host_ports",
-   "allowed_unsafe_sysctls",
-   "application_security_group_ids",
-   "auto_scaling_enabled",
-   "azure_policy_enabled"
+   "azure_policy_enabled",
+   "confidential_computing",
+   "gateway_id",
+   "gateway_name",
+   "http_application_routing_enabled"
   ],
   "only_in_code": [],
-  "enum_diffs": [
-   [
-    "type",
-    [
-     "systemassigned",
-     "userassigned",
-     "virtualmachinescalesets"
-    ]
-   ]
-  ]
+  "enum_diffs": []
  },
  {
   "name": "azurerm_storage_account",
@@ -56,7 +47,7 @@
   "doc_args": 90,
   "matched": 90,
   "req_agree": 89,
-  "doc_enums": 16,
+  "doc_enums": 17,
   "enum_extracted": 11,
   "enum_agree": 11,
   "api": 7,
@@ -76,7 +67,7 @@
   "enum_extracted": 3,
   "enum_agree": 3,
   "api": 6,
-  "unresolved": 4,
+  "unresolved": 0,
   "missing_in_code": [],
   "only_in_code": [],
   "enum_diffs": []
@@ -87,8 +78,8 @@
   "code_args": 91,
   "doc_args": 82,
   "matched": 82,
-  "req_agree": 81,
-  "doc_enums": 12,
+  "req_agree": 82,
+  "doc_enums": 17,
   "enum_extracted": 12,
   "enum_agree": 12,
   "api": 11,
@@ -104,11 +95,11 @@
   "doc_args": 31,
   "matched": 31,
   "req_agree": 31,
-  "doc_enums": 7,
+  "doc_enums": 8,
   "enum_extracted": 3,
   "enum_agree": 3,
   "api": 3,
-  "unresolved": 1,
+  "unresolved": 0,
   "missing_in_code": [],
   "only_in_code": [],
   "enum_diffs": []
@@ -120,7 +111,7 @@
   "doc_args": 48,
   "matched": 48,
   "req_agree": 48,
-  "doc_enums": 5,
+  "doc_enums": 6,
   "enum_extracted": 5,
   "enum_agree": 5,
   "api": 5,
@@ -154,7 +145,7 @@
   "doc_args": 61,
   "matched": 61,
   "req_agree": 60,
-  "doc_enums": 8,
+  "doc_enums": 10,
   "enum_extracted": 7,
   "enum_agree": 7,
   "api": 7,
@@ -182,23 +173,16 @@
  {
   "name": "azurerm_linux_web_app",
   "style": "typed",
-  "code_args": 121,
+  "code_args": 205,
   "doc_args": 194,
-  "matched": 115,
-  "req_agree": 113,
-  "doc_enums": 16,
-  "enum_extracted": 15,
-  "enum_agree": 13,
+  "matched": 194,
+  "req_agree": 191,
+  "doc_enums": 29,
+  "enum_extracted": 26,
+  "enum_agree": 25,
   "api": 29,
   "unresolved": 0,
-  "missing_in_code": [
-   "action",
-   "action_type",
-   "allowed_applications",
-   "allowed_audiences",
-   "allowed_groups",
-   "allowed_identities"
-  ],
+  "missing_in_code": [],
   "only_in_code": [],
   "enum_diffs": [
    [
@@ -209,16 +193,23 @@
      "builtinauthenticationproviderfacebook",
      "builtinauthenticationprovidergithub"
     ]
-   ],
-   [
-    "minimum_tls_cipher_suite",
-    [
-     "tls_aes_256_gcm_sha384",
-     "tls_aes_256_gcm_sha384\"",
-     "tls_ecdhe_ecdsa_with_aes_128_cbc_sha256",
-     "tls_ecdhe_ecdsa_with_aes_128_cbc_sha256\""
-    ]
    ]
   ]
+ },
+ {
+  "name": "azurerm_container_app_environment",
+  "style": "typed",
+  "code_args": 22,
+  "doc_args": 20,
+  "matched": 20,
+  "req_agree": 20,
+  "doc_enums": 4,
+  "enum_extracted": 3,
+  "enum_agree": 3,
+  "api": 3,
+  "unresolved": 1,
+  "missing_in_code": [],
+  "only_in_code": [],
+  "enum_diffs": []
  }
 ]

@@ -24,6 +24,7 @@ HERE = Path(__file__).resolve().parents[2]
 INSTRUCTIONS = """\
 Search over the local Microsoft Learn documentation corpus (Azure docs, dev docs, Architecture Center, FinOps toolkit, CLI/pipelines/SRE/MCP docs).
 - search_docs: natural-language or keyword questions. Returns ranked, cited snippets (never whole pages). Add filters (service, topic, repo, pivot, tab) when the user names a tool or product.
+- azurerm_object: facts about a Terraform azurerm resource or data source (arguments with types/defaults/allowed values, Azure REST calls, flow diagram) read from the provider code; use it after search_docs to go below the documentation.
 - grep_docs: literal identifiers (error codes, CLI flags, config keys, resource types). Prefer it over search_docs when you have an exact string.
 - expand: more context around a hit. read_doc: a page or one section. outline_doc: a page's headings. browse: navigate the table of contents.
 Pages contain alternatives for different tools (portal / CLI / PowerShell, languages, versions); check `variants` on hits and pass pivot/tab filters or the `variant` argument to read_doc so you do not mix procedures.
@@ -269,6 +270,20 @@ def make_server(db_path: Path | None = None, config: str | None = None) -> MCPSe
         """Navigate tables of contents. No arguments: list TOC files (narrow with repo / filter substring).
         toc_path='azure-docs/articles/storage/blobs/TOC.yml': its top-level entries. node_id: children of an entry."""
         return searcher.browse(node_id, toc_path, repo, filter, limit)
+
+    @mcp.tool(annotations=ro)
+    def azurerm_object(name: str, kind: str = "resource", section: str = "summary", operation: str | None = None,
+                       argument: str | None = None) -> dict:
+        """Facts about a Terraform azurerm provider object, read from the provider's Go source: its arguments (type, required/optional,
+        default, ForceNew, allowed values and ranges, conflicts), the Azure REST operations it calls (HTTP method, path template, API
+        version) and a flow diagram of create/read/update/delete. name: e.g. 'azurerm_mysql_flexible_server'; kind: 'resource' or
+        'data_source'. section: 'summary' (default), 'arguments' (pass argument='block.child' for one argument in full detail), 'api',
+        or 'flow' (operation='create'|'read'|'update'|'delete'). Derived facts only (no source text); `provenance` names the repository
+        revisions and their licenses (MPL-2.0, HashiCorp). Values the code computes at run time are listed under `unresolved`."""
+        from .azurerm_extract import describe
+        r = describe(name, kind, section, operation, argument)
+        log("azurerm_object", {"name": name, "kind": kind, "section": section, "operation": operation, "argument": argument}, r)
+        return r
 
     @mcp.tool(annotations=ro)
     def grep_docs(pattern: str, glob: str | None = None, limit: int = 20, context: int = 1, regex: bool = False) -> dict:

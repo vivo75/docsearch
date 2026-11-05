@@ -32,7 +32,8 @@ from legacy import NomicQueries as _Embeddings
 H = Path(__file__).resolve().parents[1]; Q2 = H / "eval" / "qset2"; R = H / "eval" / "results"
 D = SearchConfig()
 # nomic = the live index (since 2026-11-01 the extended corpus, same file as c2); c1 = the original 14-repo corpus
-INDEXES = {"pretf": (H / "data" / "index-20261105-133125352.db", "qwen4b"),   # live index before the azurerm provider docs were added (2026-11-05)
+INDEXES = {"preaks": (H / "data" / "index-20261105-154235678.db", "qwen4b"),   # live index before the AKS release notes + Kubernetes upstream docs (2026-11-05)
+           "pretf": (H / "data" / "index-20261105-133125352.db", "qwen4b"),   # live index before the azurerm provider docs were added (2026-11-05)
            "nomic": (H / "data" / "exp-nomic-baseline.db", "nomic"),   # nomic baseline = the live index of 2026-11-02 04:02 (until Qwen3 went live)
            "live": (H / "data" / "current.db", "qwen4b"),
            # prem = Qwen3 index before the horz-monitor includes were recovered (2026-11-02 22:31); keep this file while the qmon comparison matters

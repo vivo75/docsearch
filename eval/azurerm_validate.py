@@ -32,8 +32,14 @@ def documented(name: str) -> dict[str, dict]:
         elif cur and ln.strip() and not ln.startswith(("*", "#")):
             out[cur]["text"] += " " + ln.strip()
     for v in out.values():
-        m = re.search(r"(?:possible values (?:are|include)|valid values (?:are|include)|must be one of|one of)\s*:?\s*((?:`[^`]+`(?:,|\s|and|or|\.)*)+)", v["text"], re.I)
-        v["enum"] = set(x.lower() for x in re.findall(r"`([^`]+)`", m.group(1))) if m else None
+        m = re.search(r"(?:possible values (?:are|include)|valid values (?:are|include)|must be one of|one of)\s*:?\s*", v["text"], re.I)
+        if m:
+            tail = v["text"][m.end():]
+            end = re.search(r"\.(?:\s+[A-Z(]|\s*$)|\s+(?:Defaults?|Changing|Note|When|If)\b", tail)
+            sentence = tail[: end.start()] if end else tail
+            v["enum"] = {x.strip('"\' ').lower() for x in re.findall(r"`([^`]+)`", sentence)} or None
+        else:
+            v["enum"] = None
     return out
 
 

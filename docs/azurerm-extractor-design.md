@@ -60,32 +60,37 @@ Estrattore deterministico, con prototipo su 10 risorse e validazione contro la d
 - Validazione: `eval/azurerm_validate.py` confronta ciò che l'estrattore legge dal codice con la pagina della stessa risorsa in `azurerm-docs`. Risultati: `eval/results/azurerm-validate.json`.
 - Sorgenti: `terraform-provider-azurerm` (sparse, `internal/services/*`), enum e operazioni REST da `go-azure-sdk` alla versione in `go.mod`, scaricati una volta in `data/azurerm-cache/`.
 
-### Esito del prototipo (2026-11-05, 11 risorse)
-| Risorsa | Argomenti nel codice | Nella doc | Abbinati | Required/optional concordi | Enum doc / estratti / concordi | Chiamate API |
-|---|---|---|---|---|---|---|
-| azurerm_mysql_flexible_server | 45 | 40 | 40 | 39 | 5 / 3 / 3 | 5 |
-| azurerm_kubernetes_cluster | 182 | 267 | 163 | 162 | 19 / 16 / 15 | 13 |
-| azurerm_storage_account | 166 | 90 | 90 | 89 | 16 / 11 / 11 | 7 |
-| azurerm_key_vault | 26 | 25 | 25 | 25 | 4 / 3 / 3 | 6 |
-| azurerm_linux_virtual_machine | 91 | 82 | 82 | 81 | 12 / 12 / 12 | 11 |
-| azurerm_virtual_network | 33 | 31 | 31 | 31 | 7 / 3 / 3 | 3 |
-| azurerm_postgresql_flexible_server | 50 | 48 | 48 | 48 | 5 / 5 / 5 | 5 |
-| azurerm_mssql_server | 27 | 23 | 23 | 23 | 2 / 2 / 2 | 10 |
-| azurerm_cosmosdb_account | 78 | 61 | 61 | 60 | 8 / 7 / 7 | 7 |
-| azurerm_service_plan | 12 | 12 | 12 | 12 | 2 / 0 / 0 | 3 |
-| azurerm_linux_web_app | 121 | 194 | 115 | 113 | 16 / 15 / 13 | 29 |
+### Esito (2026-11-05, dopo i miglioramenti)
+Validazione contro la documentazione su 12 risorse (`eval/azurerm_validate.py`):
+- argomenti documentati trovati nel codice: **876 su 893** (98%);
+- required/optional concordi: 870 su 876;
+- enum documentati 141, estratti 102, concordi 101;
+- chiamate API risolte su tutte le 12 risorse.
 
-Totale: 690 argomenti abbinati su 873 documentati; required/optional concordi su 683 di 690; enum concordi su 74 di 77 estratti (96 enum documentati in totale).
+Copertura su un campione casuale di 60 risorse: **60/60 estratte senza errori**, API risolte per 49 (82%). Per le altre 11 il risultato dichiara in `unresolved`
+che nessuna chiamata Azure è stata trovata staticamente (il codice delega a funzioni condivise o a un client non seguito), così chi legge non conclude che l'API non esiste.
 
-### Limiti noti
-- **Enum estratti ma non concordi:** in parte sono difetti del validatore, che legge male la doc (per esempio `tls_aes_256_gcm_sha384"` con la virgoletta finale, o valori di altri campi finiti nella stessa lista). Vanno sistemati nel parser della doc prima di fidarsi del confronto.
-- **Argomenti documentati ma non trovati nel codice:** soprattutto blocchi annidati di schemi condivisi (ACI connector, sicurezza di rete del cluster, CORS dello storage, cronologia dei valori delle app web). Il codice li costruisce con helper che l'estrattore non segue fino in fondo.
-- **`azurerm_container_app_environment`:** non trovata. Il suo codice è in una cartella che il registro non segue con lo stesso schema.
-- **`azurerm_service_plan`:** la risorsa è tipizzata (framework nuovo), quindi lo schema e i metodi CRUD seguono un altro percorso; gli enum non vengono estratti.
-- **Chiamate API:** risolte 73 chiamate in 11 risorse; le operazioni sono ricavate dalle funzioni `*ThenPoll` e dall'SDK alla versione fissata.
+Miglioramenti fatti rispetto al primo prototipo:
+- nessun corpo di funzione copiato nel risultato: solo firma, riferimento file:riga, numero di righe e regex dei validatori personalizzati;
+- blocco `provenance` in ogni risultato (repository, revisioni, licenza MPL-2.0 rilevata dai file LICENSE);
+- layout nuovo del provider (`<servizio>/resources/<nome>/resource.go`), data source, qualsiasi alias del pacchetto di schema;
+- helper di schema condivisi (anche tra pacchetti), mappe costruite per assegnazione o con `maps.Copy`, funzioni letterali;
+- elenchi di valori definiti in variabili o funzioni (anche concatenati con `append`) e costanti locali;
+- helper `commonschema` noti (zone, edge zone, identità, ResourceID);
+- chiamate API seguite anche nelle funzioni di supporto del pacchetto e di altri pacchetti del provider.
 
-### Prossimi passi
-1. Sistemare il parser della doc (virgolette, liste miste) e rifare la validazione.
-2. Seguire gli helper di schema condivisi per i blocchi annidati mancanti.
-3. Aggiungere il supporto ai data source e al percorso tipizzato per gli enum.
-4. Solo dopo, esporre un tool MCP che restituisce il JSON per risorsa.
+### Il tool MCP
+`azurerm_object(name, kind="resource"|"data_source", section="summary"|"arguments"|"api"|"flow", operation, argument)`:
+- `summary`: argomenti obbligatori, ForceNew, blocchi, chiamate API, `unresolved`;
+- `arguments`: elenco compatto; con `argument="blocco.figlio"` il dettaglio completo di uno solo (tipo, default, valori ammessi, conflitti);
+- `api`: operazioni REST (metodo HTTP, percorso, versione API, long-running), anche per operazione;
+- `flow`: diagramma Mermaid di create/read/update/delete.
+
+Dipendenze: `tree-sitter` e `tree-sitter-go` (in `pyproject.toml`). Sorgenti: clone sparse di `terraform-provider-azurerm` con `website/docs`, `internal/services` e `go.mod`
+(variabile `DOCSEARCH_AZURERM_SRC` per un altro percorso); i file dell'SDK si scaricano alla prima richiesta in `data/azurerm-cache/`. Il nightly aggiorna lo stesso clone.
+
+### Limiti residui
+- 11 risorse su 60 senza chiamata API risolta (dichiarato nel risultato).
+- Gli enum calcolati a runtime (per esempio elenchi di SKU costruiti da cicli) non si enumerano.
+- I validatori personalizzati sono riportati per nome e posizione, non spiegati.
+- Il diagramma è un'approssimazione: sequenza di chiamate e rami `if`/cicli, non un grafo di controllo completo.

@@ -162,7 +162,7 @@ def test_mcp_tools_registered_and_callable(idx, tmp_path):
     from docsearch.server import make_server
     srv = make_server(idx)
     tools = asyncio.run(srv.list_tools())
-    assert {t.name for t in tools} == {"search_docs", "expand", "read_doc", "outline_doc", "browse", "grep_docs"}
+    assert {t.name for t in tools} == {"search_docs", "expand", "read_doc", "outline_doc", "browse", "grep_docs", "azurerm_object"}
     assert all(t.annotations and t.annotations.read_only_hint for t in tools)
 
 

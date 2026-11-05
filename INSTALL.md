@@ -142,6 +142,28 @@ done
 
 Tre repository sono privati e non si possono clonare: `reusable-content`, `azure-dev-docs-pr`, `azure-policy-autogen-docs`. Qui sono sostituiti da file ricostruiti a mano dalle pagine renderizzate (cartelle `reusable-content/` e `azure-dev-docs-pr/` accanto al corpus, con `RECONSTRUCTED.md`); **non fanno parte del repository docsearch**. Senza di essi le pagine che li includono restano segnalate come non risolte; se la soglia del 15% blocca la build, `docsearch build --force` pubblica comunque.
 
+### 6.x Fonti non-Learn convertite (azurerm, release notes AKS, Kubernetes)
+
+Tre repository pubblici non hanno il formato Learn e vengono convertiti in cartelle `.md` sorelle del corpus (ognuna è un piccolo repo git locale). Il nightly li aggiorna e li converte prima di `docsearch update`.
+
+```bash
+cd /percorso/Microsoft
+# provider Terraform azurerm: documentazione (website/docs) e codice dei servizi (internal/services, usato dal tool azurerm_object)
+git clone --depth 1 --filter=blob:none --sparse https://github.com/hashicorp/terraform-provider-azurerm.git
+git -C terraform-provider-azurerm sparse-checkout set website/docs internal/services
+# release notes AKS (solo CHANGELOG.md)
+git clone --depth 1 --filter=blob:none --sparse https://github.com/Azure/AKS.git
+git -C AKS sparse-checkout set --no-cone /CHANGELOG.md
+# Kubernetes upstream (concetti, task, deprecazioni, post di release)
+git clone --depth 1 --filter=blob:none --sparse https://github.com/kubernetes/website.git kubernetes-website
+git -C kubernetes-website sparse-checkout set --no-cone /content/en/docs/concepts /content/en/docs/tasks /content/en/releases \
+    /content/en/docs/reference/using-api /content/en/blog/_posts /content/en/examples /hugo.toml
+cd docsearch
+.venv/bin/python eval/convert_azurerm.py && .venv/bin/python eval/convert_aks_releases.py && .venv/bin/python eval/convert_k8s.py
+```
+
+Il tool MCP `azurerm_object` legge `terraform-provider-azurerm/internal/services` con tree-sitter (`tree-sitter` e `tree-sitter-go`, già in `pyproject.toml`; `uv sync` li installa) e scarica alla prima richiesta, nella cache `data/azurerm-cache/`, i file di `hashicorp/go-azure-sdk` alla versione indicata da `go.mod`. Usa `DOCSEARCH_AZURERM_SRC` per un altro percorso del clone.
+
 ## 7. Primo indice
 
 ```bash
@@ -201,6 +223,7 @@ Prova a mano: `uv run docsearch update --pull --canary` (oppure `--dry-run` per 
 | `DOCSEARCH_RERANK` | nome del reranker (`bge-v2-m3-q8`) oppure `off` |
 | `DOCSEARCH_EXPAND`, `DOCSEARCH_EXPAND_IDLE`, `DOCSEARCH_EXPAND_DEVICE`, `DOCSEARCH_EXPAND_PORT` | espansione delle query (`off` la spegne; scarica Gemma dopo 300 s di inattività) |
 | `DOCSEARCH_VECMAT=off` | ignora la cache vettoriale `.npy` e usa sqlite-vec (più lento, ~13×) |
+| `DOCSEARCH_AZURERM_SRC` | clone del provider azurerm per il tool `azurerm_object` (default `../terraform-provider-azurerm`) |
 | `DOCSEARCH_QUERY_LOG` | file `.jsonl` del registro delle query (`data/queries.jsonl`) |
 | `DOCSEARCH_RESULT_LOG` | file `.jsonl` con la risposta completa di ogni chiamata (`data/results.jsonl`, ruotato a 100 MB) |
 | `DOCSEARCH_LOG_RESULTS` | `off` per non salvare le risposte complete (default `on`) |
