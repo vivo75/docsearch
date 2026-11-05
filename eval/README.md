@@ -281,3 +281,6 @@ Chronological pages (`whats-new`, `release-notes`, `changelog`, `provider-versio
 - qset2 dev: neutral at 0.9-0.65 (MRR -.001..-.002, CIs include 0); 0.5 loses R@5 .004. qset2 test, 0.65: strict identical, lenient nDCG10 -.003 [-.006,-.001].
 - `compare.py --gate` (qset2 test, news65 vs server): FAIL — rule 1 needs dMRR > 0 (qset2 has almost no queries where a changelog is the wrong answer, so it cannot show a gain) and rule 2 (lenient nDCG10 CI below 0).
 Try it with `--systems live/server,live/news65` (configs news90/80/65/50). Adopting needs either a set with changelog-heavy queries or an explicit `--override "reason"` decision.
+
+### B12: stronger service boost (`boost_service` 1.1 -> 1.5/2.0/3.0, 2026-11-05) — rejected
+qreal: no change at any level (MRR .701, same ranks; the remaining misses are already inside the right service). qset2 dev (strict): 2.0 loses MRR -.029 [-.045,-.014], R@5 -.021 [-.042,-.004]; 3.0 loses MRR -.055, R@5 -.046 (lenient the same). A service-name match in the query is a weak signal (the keywords are generic: "database", "monitor"), so a larger multiplier mostly promotes the wrong pages. Keep 1.1. Configs `svc15/svc20/svc30` stay in compare.py.
