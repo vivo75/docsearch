@@ -164,3 +164,12 @@ name = "kubernetes-docs"
 url_base = "https://kubernetes.io"
 docs_root = "."
 weight = 1.0
+
+# Azure Pipelines docs (learn.microsoft.com/azure/devops/pipelines): the GitHub source is not readable without credentials, so this checkout is rebuilt
+# from rendered Learn markdown by `eval/crawl_learn.py --service devops` (see its RECONSTRUCTED.md). Added 2026-11-05 (AKS-upgrade review, Backlog 2).
+[[repo]]
+name = "azure-devops-docs"
+url_base = "https://learn.microsoft.com/azure/devops"
+docs_root = "azure/devops"
+restrict = true
+weight = 1.0

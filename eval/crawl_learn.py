@@ -76,6 +76,18 @@ SERVICES = {
         "entry": {"name": "azure-databases-docs", "docs_root": "articles/mysql",
                   "url_base": "https://learn.microsoft.com/azure/mysql"},
     },
+    # Azure Pipelines (learn.microsoft.com/azure/devops/pipelines: YAML, agents, service connections, ecosystems). MicrosoftDocs/azure-devops-docs is not
+    # readable without credentials. Pages are stored at their URL path (docs/pipelines/* is served under azure/devops/pipelines/*).
+    "devops": {
+        "source": "MicrosoftDocs/azure-devops-docs",
+        "checkout": "azure-devops-docs",
+        "areas": [(f"azure/devops/pipelines{a}", f"azure/devops/pipelines{a}") for a in ("", "/yaml-schema", "/tasks/reference")],   # own TOCs: YAML schema, task reference (AzureCLI@2 ...)
+        "url_prefix": "azure/devops/pipelines/",
+        "src_prefix": "azure/devops/pipelines/",
+        "path_by_url": True,
+        "entry": {"name": "azure-devops-docs", "docs_root": "azure/devops",
+                  "url_base": "https://learn.microsoft.com/azure/devops"},
+    },
 }
 
 UA = {"User-Agent": "docsearch-corpus-crawl (contact: repo owner; 1 req/0.8s)"}
