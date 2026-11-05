@@ -73,3 +73,17 @@ expect = ["azure-devops-docs/azure/devops/pipelines/agents/linux-agent.md"]
 id = "azurerm-4-upgrade-aks"
 question = "azurerm provider 4.0 upgrade guide breaking changes enable_auto_scaling renamed auto_scaling_enabled"
 expect = ["azurerm-docs/guides/4.0-upgrade-guide.md"]
+
+# Backlog 9: both looked like corpus gaps in the AKS-upgrade session but the answers are indexed.
+[[query]]
+id = "aks-stopped-upgrade"
+service = "azure-kubernetes-service"
+question = "can I upgrade a stopped AKS cluster Kubernetes version; start cluster before upgrade"
+expect = ["azure-aks-docs/articles/aks/start-stop-cluster.md"]     # "You can only perform start or delete operations on a stopped cluster ... upgrading ... start your cluster first" (chunk 'Before you begin', rank ~7)
+top = 10
+
+[[query]]
+id = "aks-gateway-internal-lb"
+service = "azure-kubernetes-service"
+question = "application routing Gateway API internal load balancer private IP Gateway infrastructure annotations azure-load-balancer-internal subnet"
+expect = ["azure-aks-docs/articles/aks/istio-gateway-api.md", "azure-aks-docs/articles/aks/internal-lb.md"]     # app-routing-gateway-api.md delegates annotation customisation to the Istio add-on page
