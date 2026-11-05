@@ -173,7 +173,8 @@ class _Expansion:
 
 # Chosen by eval/rerank_eval.py and eval/expand_eval.py: bge-reranker-v2-m3 over the top 10, fused with the original rank at equal weight.
 FULL_LOG_MAX = 100 * 2**20            # data/results.jsonl is rotated to results.jsonl.1 past this size
-SERVER_CONFIG = SearchConfig(rerank_top=10, rerank_mode="rrf", rerank_weight=1.0, variant_boost=0.6, news_penalty=0.8)
+SERVER_CONFIG = SearchConfig(rerank_top=10, rerank_fill=30, rerank_mode="rrf", rerank_weight=1.0, variant_boost=0.6, news_penalty=0.8)
+# rerank_fill=30 (eval qset2 test 2026-11-05, adopted by explicit override in eval/decisions.jsonl): the rerank window grows past rerank_top until the reranked chunks collapse to `limit` hits, so no hit is shown unreranked. Strict dMRR +.007 [-.001,+.017] (gate rule 1 failed by .001), lenient dMRR +.009 / nDCG10 +.014 significant; p50 616 -> 863 ms.
 # news_penalty=0.8 (eval B11, 2026-11-05, adopted by explicit override in eval/decisions.jsonl): what's-new / release-notes / changelog pages are demoted unless the query asks for news.
 # variant_boost=0.6 (eval B8, 2026-11-03): variant accuracy .75 -> .89 on dev with no MRR/R@5 change; tool mentions in the query boost matching tab/pivot chunks.
 # expand_vec=1 on top of that (eval/expand_eval.py): R@5 .846 -> .904 strict; applied only when DOCSEARCH_EXPAND is not off.
