@@ -64,6 +64,7 @@ class SearchConfig:
     rerank_top: int = 0                 # rerank this many top chunks with the cross-encoder (0 = off)
     rerank_mode: str = "replace"        # "replace": order by reranker score; "rrf": fuse fused-rank and rerank-rank
     rerank_weight: float = 1.0          # weight of the reranker in "rrf" mode
+    rerank_fill: int = 0                # >rerank_top: widen the rerank window (up to this many chunks) until the reranked chunks collapse to `limit` hits, so no hit is shown unreranked (0 = off)
     expand_lex: float = 0.0             # weight of an extra BM25 list built from question + LLM-expanded terms (0 = off)
     expand_vec: float = 0.0             # weight of an extra vector list for "question + expansion" (0 = off)
     dedup: float = 0.0                  # merge hits whose text is a near-duplicate (word-3-gram Jaccard >= this) into the best-ranked one; 0 = off
@@ -367,7 +368,7 @@ class Searcher:
         if c.rerank_top and self.reranker:
             t = time.perf_counter()
             try:
-                hits, confidence = self._rerank(query, hits, extras)
+                hits, confidence = self._rerank(query, hits, extras, limit)
             except Exception as e:             # reranker down: keep the fused order, say so
                 warnings.append(f"reranker unavailable ({type(e).__name__}); using fused order")
             timings["rerank_ms"] = round((time.perf_counter() - t) * 1000)
@@ -443,8 +444,26 @@ class Searcher:
         hits.sort(key=lambda h: h.score, reverse=True)
         return hits
 
-    def _rerank(self, query: str, hits: list[Hit], extras: list[str] = ()) -> tuple[list[Hit], float]:
+    def _n_groups(self, hits: list[Hit]) -> int:
+        """How many hits `_collapse` would return for these chunks (same grouping and per-document cap, without touching the hits)."""
+        seen: set[tuple] = set()
+        per_doc: dict[int, int] = {}
+        for h in hits:
+            r = h.row
+            variant = ",".join(x for x in (r["variant_tab"], r["variant_pivot"], r["variant_moniker"]) if x)
+            key = (r["doc_id"], r["heading_path"]) + ((variant,) if not self.cfg.group_variants else ())
+            if key in seen or per_doc.get(r["doc_id"], 0) >= self.cfg.per_doc:
+                continue
+            seen.add(key)
+            per_doc[r["doc_id"]] = per_doc.get(r["doc_id"], 0) + 1
+        return len(seen)
+
+    def _rerank(self, query: str, hits: list[Hit], extras: list[str] = (), limit: int = 0) -> tuple[list[Hit], float]:
         n = min(self.cfg.rerank_top, len(hits))
+        if self.cfg.rerank_fill > n and limit:
+            cap = min(self.cfg.rerank_fill, len(hits))
+            while n < cap and self._n_groups(hits[:n]) < limit:      # the head collapses to fewer than `limit` hits: the rest would be shown unreranked
+                n += 1
         head, tail = hits[:n], hits[n:]
         docs = [f"{h.row['title']} › {h.row['heading_path']}\n{h.row['text']}" if h.row["heading_path"]
                 else f"{h.row['title']}\n{h.row['text']}" for h in head]
