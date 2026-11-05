@@ -275,7 +275,7 @@ Run: `eval/compare.py --set qreal --split all --systems live/server`. Expansions
 Baseline (live index 2026-11-04 22:49): R@1 .583, R@5 .917, MRR .719, nDCG10 .679. Misses: r08 "version policy supported versions" (rank 11; `concepts-version-policy` loses to changelog/what's new pages),
 r11 HA (rank 5), r04 (rank 3). Not representable yet: `azurerm_mysql_flexible_server` reference (page not in the corpus; see memory todo-terraform-azurerm-docs).
 
-### B11: demoting changelog pages (`news_penalty`, 2026-11-05) — NOT adopted (gate FAIL), code kept off (`news_penalty=1.0`)
+### B11: demoting changelog pages (`news_penalty`, 2026-11-05) — adopted at 0.8 by explicit override (gate FAIL on rule 1, see eval/decisions.jsonl)
 Chronological pages (`whats-new`, `release-notes`, `changelog`, `provider-version-history`; `search.NEWS_PATH`) are multiplied by `news_penalty` in `_boost` and after the RRF rerank fusion, unless the query asks for news (`NEWS_QUERY`).
 - qreal (12 real queries): MRR .719 -> .785 (0.9) / .785 (0.8) / .806 (0.65, 0.5); R@5 .917 -> 1.0 from 0.8 down; `concepts-version-policy` (r08) rank 11 -> 2 at 0.65.
 - qset2 dev: neutral at 0.9-0.65 (MRR -.001..-.002, CIs include 0); 0.5 loses R@5 .004. qset2 test, 0.65: strict identical, lenient nDCG10 -.003 [-.006,-.001].
