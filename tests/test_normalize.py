@@ -21,3 +21,9 @@ def test_links_rewritten_and_collected():
 def test_code_untouched():
     t = "```md\n![a](b.png) [x](y.md)\n```"
     assert normalize(t)[0] == t
+
+
+def test_site_rooted_links_use_the_repo_site():
+    out, links = normalize("[g](/docs/reference/using-api/deprecation-guide#v1-32)", None, "https://kubernetes.io")
+    assert out == "[g](https://kubernetes.io/docs/reference/using-api/deprecation-guide#v1-32)"
+    assert links == ["https://kubernetes.io/docs/reference/using-api/deprecation-guide#v1-32"]

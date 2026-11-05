@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from .azcli import to_markdown as azcli_to_markdown
 from .chunker import Chunk, DocInfo, chunk_page
@@ -10,7 +11,7 @@ from .config import Config, Repo
 from .frontmatter import parse_page
 from .includes import IncludeResolver
 from .normalize import normalize
-from .urls import doc_url
+from .urls import SITE, doc_url
 
 
 @dataclass
@@ -53,7 +54,7 @@ class Processor:
         if r is None:
             return None
         path, page, res = r
-        text, links = normalize(res.text, lambda target: self._target_url(path, target))
+        text, links = normalize(res.text, lambda target: self._target_url(path, target), self._site())
         info = DocInfo(self.repo.name, rel, page.title, doc_url(self.repo, rel))
         flags = list(page.flags)
         if res.unresolved:
@@ -62,6 +63,11 @@ class Processor:
             flags.append("snippet_unresolved")
         return PageResult(info, page.meta, flags, chunk_page(info, text), res.deps, links,
                           len(res.unresolved), len(res.snippets_unresolved))
+
+    def _site(self) -> str:
+        """Origin of the repo's public site: site-rooted links in its pages point there (kubernetes.io), not to Learn."""
+        u = urlsplit(self.repo.url_base or "")
+        return f"{u.scheme}://{u.netloc}" if u.scheme and u.netloc else SITE
 
     def _target_url(self, page_path: Path, target: str) -> str | None:
         base = self.repo.docs_dir if target.startswith("~/") else page_path.parent

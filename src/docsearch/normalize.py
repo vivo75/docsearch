@@ -18,8 +18,9 @@ _LINK = re.compile(r"(?<!\!)\[([^\]]*)\]\(\s*([^)\s]+)((?:\s+\"[^\"]*\")?)\s*\)"
 LinkMapper = Callable[[str], "str | None"]   # relative/rooted doc target (no anchor) -> public URL
 
 
-def normalize(text: str, link_url: LinkMapper | None = None) -> tuple[str, list[str]]:
-    """Return (text, outgoing link URLs). Fenced code is left untouched."""
+def normalize(text: str, link_url: LinkMapper | None = None, site: str = SITE) -> tuple[str, list[str]]:
+    """Return (text, outgoing link URLs). Fenced code is left untouched. `site` is the origin that site-rooted links (`/docs/x`) resolve against
+    (the repo's own site, e.g. https://kubernetes.io, not always Learn)."""
     lines = text.split("\n")
     mask = fence_mask(lines)
     out: list[str] = []
@@ -40,12 +41,12 @@ def normalize(text: str, link_url: LinkMapper | None = None) -> tuple[str, list[
             continue
         ln = _MD_IMG.sub(lambda mm: f"[Image: {mm.group(1).strip()}]" if mm.group(1).strip() else "", ln)
         if "](" in ln:
-            ln = _LINK.sub(lambda mm: _rewrite(mm, link_url, links), ln)
+            ln = _LINK.sub(lambda mm: _rewrite(mm, link_url, links, site), ln)
         out.append(ln)
     return "\n".join(out), links
 
 
-def _rewrite(m: re.Match, link_url: LinkMapper | None, links: list[str]) -> str:
+def _rewrite(m: re.Match, link_url: LinkMapper | None, links: list[str], site: str = SITE) -> str:
     label, target, title = m.group(1), m.group(2), m.group(3)
     if target.startswith("#") or target.startswith("mailto:") or re.match(r"^[a-z][a-z0-9+.-]*:", target, re.I):
         if target.startswith(("http://", "https://")):
@@ -57,7 +58,7 @@ def _rewrite(m: re.Match, link_url: LinkMapper | None, links: list[str]) -> str:
     path = unquote(path.split("?")[0])
     url = None
     if path.startswith("/"):
-        url = SITE + path.lower().rstrip("/") if not path.endswith((".md", ".yml")) else None
+        url = site + path.lower().rstrip("/") if not path.endswith((".md", ".yml")) else None
     elif link_url and path.endswith(".md"):
         url = link_url(path)
     if not url:
