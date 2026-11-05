@@ -102,6 +102,29 @@ class Filters:
         return any(self.__dict__.values())
 
 
+def stale_warnings(rendered: list[dict], months: int = 24, top: int = 3) -> list[str]:
+    """Tell the caller when one of the first `top` pages was last reviewed (ms_date) `months`+ before another returned page of the same service:
+    the older page may state rules the newer one has replaced. Informational only: the ranking is not touched (a stale-date penalty was
+    never gated; many old-dated pages are still right). Release-note style pages are ignored (they are old by nature)."""
+    def ym(h):
+        d = h["meta"].get("ms_date") or ""
+        return int(d[:4]) * 12 + int(d[5:7]) if len(d) >= 7 and d[:4].isdigit() and d[5:7].isdigit() else None
+    out, seen = [], set()
+    for i, h in enumerate(rendered[:top]):
+        a, svc = ym(h), h["meta"].get("service")
+        if a is None or not svc or h["source"] in seen or h["meta"].get("topic") == "release-notes":
+            continue
+        newer = [o for o in rendered if o["meta"].get("service") == svc and o["source"] != h["source"]
+                 and o["meta"].get("topic") != "release-notes" and ym(o) is not None and ym(o) - a >= months]
+        if newer:
+            seen.add(h["source"])
+            o = max(newer, key=ym)
+            gap = ym(o) - a
+            out.append(f"hit {i + 1} '{h['title']}' (ms_date {h['meta']['ms_date']}) is {gap // 12}y{gap % 12}m older than "
+                       f"'{o['title']}' ({o['meta']['ms_date']}): check the newer page before relying on limits or version rules in the older one")
+    return out
+
+
 @dataclass
 class ParsedQuery:
     raw: str
@@ -352,6 +375,7 @@ class Searcher:
         with self._lock:
             same = gen == self._gen            # not reopened here: rows of the old index must not meet the new connection
             rendered = self._render(hits, max_tokens, toc=same)
+        warnings.extend(stale_warnings(rendered))
         if not same:
             warnings.append("the index was replaced while searching; table-of-contents context omitted")
         timings["total_ms"] = round((time.perf_counter() - t0) * 1000)
