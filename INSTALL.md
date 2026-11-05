@@ -198,6 +198,8 @@ Prova a mano: `uv run docsearch update --pull --canary` (oppure `--dry-run` per 
 | `DOCSEARCH_EXPAND`, `DOCSEARCH_EXPAND_IDLE`, `DOCSEARCH_EXPAND_DEVICE`, `DOCSEARCH_EXPAND_PORT` | espansione delle query (`off` la spegne; scarica Gemma dopo 300 s di inattività) |
 | `DOCSEARCH_VECMAT=off` | ignora la cache vettoriale `.npy` e usa sqlite-vec (più lento, ~13×) |
 | `DOCSEARCH_QUERY_LOG` | file `.jsonl` del registro delle query (`data/queries.jsonl`) |
+| `DOCSEARCH_RESULT_LOG` | file `.jsonl` con la risposta completa di ogni chiamata (`data/results.jsonl`, ruotato a 100 MB) |
+| `DOCSEARCH_LOG_RESULTS` | `off` per non salvare le risposte complete (default `on`) |
 
 Porte usate in locale da `llama-server`: 8102 (query), 8103 (build/update), 8104 (controlli notturni), 8097 (reranker), 8096 (espansione), 8105 (rapporti); il server MCP HTTP usa 8765.
 Tutti i processi `llama-server` ascoltano solo su `127.0.0.1`.

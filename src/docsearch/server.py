@@ -171,6 +171,7 @@ class _Expansion:
 
 
 # Chosen by eval/rerank_eval.py and eval/expand_eval.py: bge-reranker-v2-m3 over the top 10, fused with the original rank at equal weight.
+FULL_LOG_MAX = 100 * 2**20            # data/results.jsonl is rotated to results.jsonl.1 past this size
 SERVER_CONFIG = SearchConfig(rerank_top=10, rerank_mode="rrf", rerank_weight=1.0, variant_boost=0.6, news_penalty=0.8)
 # news_penalty=0.8 (eval B11, 2026-11-05, adopted by explicit override in eval/decisions.jsonl): what's-new / release-notes / changelog pages are demoted unless the query asks for news.
 # variant_boost=0.6 (eval B8, 2026-11-03): variant accuracy .75 -> .89 on dev with no MRR/R@5 change; tool mentions in the query boost matching tab/pivot chunks.
@@ -199,6 +200,9 @@ def make_server(db_path: Path | None = None, config: str | None = None) -> MCPSe
     mcp = MCPServer("docsearch", instructions=INSTRUCTIONS)
     ro = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 
+    full_log = (None if os.environ.get("DOCSEARCH_LOG_RESULTS", "on").lower() in ("off", "none", "0", "")
+                else Path(os.environ.get("DOCSEARCH_RESULT_LOG", HERE / "data" / "results.jsonl")))
+
     def log(tool: str, args: dict, result: dict) -> None:
         try:
             top = [h.get("score") for h in result.get("hits", [])[:3]]
@@ -207,7 +211,13 @@ def make_server(db_path: Path | None = None, config: str | None = None) -> MCPSe
                    "top_scores": top, "timings": result.get("timings"), "error": result.get("error")}
             with open(log_path, "a") as f:
                 f.write(json.dumps(rec) + "\n")
-        except OSError:
+            if full_log:                       # the raw answer, so a later analysis (e.g. an agent's feedback archive) needs no transcription
+                if full_log.exists() and full_log.stat().st_size > FULL_LOG_MAX:
+                    full_log.replace(full_log.with_name(full_log.name + ".1"))
+                with open(full_log, "a") as f:
+                    f.write(json.dumps({"t": rec["t"], "tool": tool, "args": args, "index": os.path.basename(os.path.realpath(db)),
+                                        "result": result}, ensure_ascii=False) + "\n")
+        except (OSError, TypeError, ValueError):
             pass
 
     @mcp.tool(annotations=ro)
