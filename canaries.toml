@@ -58,3 +58,13 @@ id = "aks-pipelines-private"
 question = "run az aks upgrade from Azure Pipelines with AzureCLI@2 task on Ubuntu self-hosted agent private AKS cluster"
 # retrieval stage only: the canary has no reranker, so it does not see the production symptom (page last, no relevance; Backlog 1)
 expect = ["architecture-center/docs/guide/aks/aks-firewall.md"]
+
+[[query]]
+id = "devops-azurecli-task"
+question = "AzureCLI@2 task Azure Pipelines run az commands with an Azure Resource Manager service connection"
+expect = ["azure-devops-docs/azure/devops/pipelines/tasks/reference/azure-cli-v2.md"]
+
+[[query]]
+id = "devops-selfhosted-linux-agent"
+question = "install a self-hosted Linux agent for Azure Pipelines on Ubuntu"
+expect = ["azure-devops-docs/azure/devops/pipelines/agents/linux-agent.md"]
