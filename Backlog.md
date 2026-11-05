@@ -32,7 +32,10 @@ Stato: `[ ]` da fare, `[~]` in corso, `[x]` fatto.
 8. [ ] **Contraddizioni tra fonti** (skip dei minor "uno alla volta" vs FAQ; "2 minor" vs N-3): segnalare il conflitto e quale fonte è più recente.
 9. [ ] **Buchi di corpus**: upgrade di cluster Stopped avviato dall'utente; annotazioni LB interno con Gateway API di app-routing.
 10. [x] **Canarie dalle query dell'archivio** (005, 006, 010, 012, 023, 026) in `canaries.toml` (`[[query]]`, supporto in `canary.py`; 9 voci, 2026-11-05). Verificato sull'indice attuale: 8 passano, `aks-nginx-retirement` è `known_gap` (causa: punto 5, `service: null`). Limite: il canarino non usa il reranker, quindi `aks-pipelines-private` passa e NON vede il sintomo del punto 1. Non coperte (nessuna pagina attesa, buchi di corpus): 012, 023, 026.
-11. [ ] Query 010 (provider azurerm 3.x->4.x, `kubernetes_version` drift) non rieseguita: verificare se la guida di upgrade 4.0 è indicizzata (azurerm-docs).
+11. [x] Query 010 (provider azurerm 3.x->4.x, `kubernetes_version` drift) non rieseguita: verificare se la guida di upgrade 4.0 è indicizzata (azurerm-docs).
+   - VERIFICATO (2026-11-05): `azurerm-docs/guides/` ha le guide 3.0, 4.0, 5.0 e 6.0. La query "azurerm provider 4.0 upgrade guide ... enable_auto_scaling" restituisce al 1°-2° posto le sezioni `azurerm_kubernetes_cluster` e `_node_pool` della guida 4.0 (relevance .75-.80), cioè il passaggio 3.x -> 4.x del repo AKS. La guida 5.0 documenta `node_provisioning_profile` obbligatorio e `oidc_issuer_enabled` true di default: spiega la revisione letta da `azurerm_object`. Nessuna modifica necessaria; canaria `azurerm-4-upgrade-aks` aggiunta.
+   - Nota: le pagine azurerm hanno `ms_date: null`, quindi l'avviso di pagine vecchie (punto 4) non le considera; è voluto.
+   - Resta (non legato a docsearch): la query 010 sul *drift di `kubernetes_version`* (Terraform che non esegue l'upgrade) non ha una pagina dedicata; la risposta sta nella documentazione degli argomenti di `azurerm_kubernetes_cluster`.
 
 ## Note
 - I JSON dell'archivio sono ricostruiti a mano (snippet abbreviati): usarli solo come elenco di query, non come benchmark.

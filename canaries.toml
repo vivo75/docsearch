@@ -68,3 +68,8 @@ expect = ["azure-devops-docs/azure/devops/pipelines/tasks/reference/azure-cli-v2
 id = "devops-selfhosted-linux-agent"
 question = "install a self-hosted Linux agent for Azure Pipelines on Ubuntu"
 expect = ["azure-devops-docs/azure/devops/pipelines/agents/linux-agent.md"]
+
+[[query]]
+id = "azurerm-4-upgrade-aks"
+question = "azurerm provider 4.0 upgrade guide breaking changes enable_auto_scaling renamed auto_scaling_enabled"
+expect = ["azurerm-docs/guides/4.0-upgrade-guide.md"]
