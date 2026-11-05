@@ -170,9 +170,10 @@ class Searcher:
                  repo_weights: dict[str, float] | None = None, config: SearchConfig | None = None,
                  reranker: Callable[[str, list[str]], list[float]] | None = None,
                  expander: Callable[[str], str] | None = None,
-                 calibrate: Callable[[float], float] | None = None):
+                 calibrate: Callable[[float], float] | None = None, calibrate_hit: Callable[[float, int], float] | None = None):
         self.cfg = config or SearchConfig()
         self.calibrate = calibrate
+        self.calibrate_hit = calibrate_hit
         self.reranker = reranker
         self.expander = expander
         self._lock = threading.RLock()
@@ -495,6 +496,7 @@ class Searcher:
     def _render(self, hits: list[Hit], max_tokens: int, toc: bool = True) -> list[dict]:
         out, used = [], 0
         per_hit = max(120, max_tokens // max(1, len(hits)))
+        pages: list[int] = []                    # distinct pages shown so far: the position the hit calibration was fitted on
         for h in hits:
             r = h.row
             snippet = truncate_tokens(r["text"], per_hit)
@@ -502,6 +504,9 @@ class Searcher:
             if out and used > max_tokens:
                 break
             base = r["url"]
+            if r["doc_id"] not in pages:
+                pages.append(r["doc_id"])
+            rel = {"relevance": round(self.calibrate_hit(h.rerank, pages.index(r["doc_id"])), 3)} if self.calibrate_hit and h.rerank is not None else {}
             out.append({
                 "chunk_id": r["chunk_id"],
                 "title": r["title"],
@@ -515,6 +520,7 @@ class Searcher:
                 "truncated": snippet != r["text"],
                 "score": round(h.score, 4),
                 **({"rerank_score": round(h.rerank, 4)} if h.rerank is not None else {}),
+                **rel,
                 **(self._toc_field(r["doc_id"]) if toc else {}),
                 **({"also_in": [{"title": a.row["title"], "heading": a.row["heading_path"], "url": a.row["url"], "source": f"{a.row['repo']}/{a.row['path']}"}
                                 for a in h.also[:25]], "also_in_total": len(h.also)} if h.also else {}),

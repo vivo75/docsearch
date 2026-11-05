@@ -43,3 +43,15 @@ def calibrator(reranker: str, path: Path = PATH) -> Callable[[float], float] | N
     except (OSError, KeyError, ValueError, TypeError):
         return None
     return lambda score: sigmoid(a * score + b)
+
+
+def hit_calibrator(reranker: str, path: Path = PATH) -> Callable[[float, int], float] | None:
+    """(rerank score, 0-based position among the distinct pages shown) -> probability that this hit is a page a human judged right for the query.
+    Fitted by `eval/hit_calibration.py` on qset2 (lenient gold, so it underestimates: a useful page outside the gold set counts as wrong).
+    Unlike `confidence` (is the corpus able to answer at all) it tells the good hits from the weak ones inside one answer."""
+    try:
+        h = json.loads(path.read_text())[reranker]["hit"]
+        w0, ws, wr = float(h["w0"]), float(h["w_score"]), float(h["w_rank"])
+    except (OSError, KeyError, ValueError, TypeError):
+        return None
+    return lambda score, rank: sigmoid(w0 + ws * score + wr * math.log1p(rank))

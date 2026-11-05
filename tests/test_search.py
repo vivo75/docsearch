@@ -374,3 +374,14 @@ def test_extra_queries_widen_recall_and_rerank_takes_the_best_score(idx):
         "firewall", limit=8, extra_queries=["Microsoft.Storage/storageAccounts operations"])
     assert seen == ["firewall", "Microsoft.Storage/storageAccounts operations"]      # duplicates and blanks are dropped
     assert r["hits"][0]["chunk_id"] == "c7" and r["rerank_max"] == 3.0
+
+
+def test_relevance_is_calibrated_per_hit_and_falls_with_position(idx):
+    from docsearch.search import SearchConfig
+    rr = lambda q, docs: [2.0 for _ in docs]
+    s = Searcher(idx, None, {}, SearchConfig(rerank_top=10, rerank_mode="replace"), rr,
+                 calibrate_hit=lambda score, pos: 1 / (1 + 2.718281828 ** -(score - pos)))
+    hits = s.search("firewall", limit=8)["hits"]
+    rel = [h["relevance"] for h in hits if "relevance" in h]
+    assert rel and rel == sorted(rel, reverse=True) and rel[0] > rel[-1] or len(rel) == 1
+    assert "relevance" not in Searcher(idx, None, {}, SearchConfig(rerank_top=10, rerank_mode="replace"), rr).search("firewall")["hits"][0]

@@ -124,6 +124,9 @@ call search_docs '{"query":"enable blob soft delete","pivot":"azure-cli","limit"
 It is the best cross-encoder score (`rerank_max`, a raw number whose scale depends on the model) mapped through a logistic curve fitted on the eval questions
 (`src/docsearch/calibration.json`, refit with `eval/abstain.py --calibrate <reranker>`). Read it as a ranking of "how likely", not as an exact probability:
 about 10% of the questions it was fitted on have no answer. Both fields are absent when the reranker is off; `confidence` is absent if that reranker was never calibrated.
+Each reranked hit also carries `relevance` (0..1): the probability that this particular hit is a page judged right for the query, from its own `rerank_score` and its position among the
+distinct pages shown (`sigmoid(0.047 + 0.364*rerank - 1.021*ln(1+position))`, fit by `eval/hit_calibration.py`; 5-fold cross-validated AUC .83, predicted vs observed within .05 in every bin).
+`confidence` stays high for any on-topic query (its AUC for "is the *top* hit right" is only .60), so use `relevance` to tell a good hit from a weak one.
 `toc` says where the page sits in the table of contents: `path` is the chain of section names above it, `node_id` can be passed to `browse` to list that
 section, `prev`/`next` are the neighbouring pages of the same section (only entries that are pages; absent at the ends). It is also returned by `read_doc` and `outline_doc`,
 and absent for pages that are in no TOC (CLI and PowerShell references, API specs, support articles: about 19% of the pages).

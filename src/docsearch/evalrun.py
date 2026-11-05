@@ -176,6 +176,9 @@ def score_question(q: dict, res: dict) -> dict:
            "r1": bool(r and r <= 1), "r5": bool(r and r <= 5), "r10": bool(r and r <= 10),
            "mrr": 1 / r if r else 0.0, "ndcg10": dcg / ideal if ideal else 0.0,
            "coverage10": len(gold & set(top10)) / len(gold) if gold else 0.0, "top_score": res["top_score"], "dup10": res.get("dup10", 0)}
+    out["rerank"] = [h.get("rerank_score") for h in res["hits"][:10]]                    # per-hit signals, for confidence studies
+    out["svc"] = [(h.get("meta") or {}).get("service") for h in res["hits"][:10]]
+    out["hit_ok"] = [h["source"] in gold for h in res["hits"][:10]]
     ev = q.get("expected_variant")
     if ev and res["hits"]:
         best = next((h for h in res["hits"] if h["source"] in gold), None)

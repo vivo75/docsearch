@@ -12,7 +12,7 @@ from pathlib import Path
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-from .calibration import calibrator
+from .calibration import calibrator, hit_calibrator
 from .config import load_config
 from .embed import QUERY_PREFIX, Embedder, QwenServer, prod_embedder, prod_server
 from .expand import ExpandServer, QueryExpander
@@ -187,7 +187,8 @@ def make_searcher(db: Path, cfg, *, rerank: str | None = None, expand: bool | No
     return Searcher(db, _Embeddings() if semantic else None, {r.name: r.weight for r in cfg.repos},
                     replace(base, expand_vec=1.0) if use_expand else base,
                     _Reranking(rerank_name) if use_rerank else None, _Expansion() if use_expand else None,
-                    calibrate=calibrator(rerank_name) if use_rerank else None)
+                    calibrate=calibrator(rerank_name) if use_rerank else None,
+                    calibrate_hit=hit_calibrator(rerank_name) if use_rerank else None)
 
 
 def make_server(db_path: Path | None = None, config: str | None = None) -> MCPServer:
@@ -220,7 +221,9 @@ def make_server(db_path: Path | None = None, config: str | None = None) -> MCPSe
         Use quotes for exact phrases. For literal identifiers prefer grep_docs.
         queries (optional, up to 3): other phrasings or sub-questions of the same need (e.g. the question reworded with
         the documentation's likely terminology, or one sub-question per aspect). They are searched together with `query` and
-        merged into one ranked list, which finds pages a single wording misses."""
+        merged into one ranked list, which finds pages a single wording misses.
+        Result fields: each hit has `relevance` (0..1, how likely that page is a right answer: trust >0.7, double-check
+        <0.3); `confidence` only says whether the corpus can answer at all and stays high whenever some page is on topic."""
         limit = max(1, min(limit, 20))
         r = searcher.search(query, Filters(service, topic, repo, pivot, tab, date_after), limit, max(500, min(max_tokens, 12000)),
                             extra_queries=queries)

@@ -6,6 +6,15 @@
     "n_unanswerable": 58,
     "fitted": "2026-11-04",
     "set": "qset2 dev+test",
-    "index": "live"
+    "index": "live",
+    "hit": {
+      "w0": 0.0467,
+      "w_score": 0.3644,
+      "w_rank": -1.0208,
+      "n_hits": 3188,
+      "fitted": "2026-11-05",
+      "set": "qset2 dev+test, lenient gold",
+      "cv_auc": 0.829
+    }
   }
 }
