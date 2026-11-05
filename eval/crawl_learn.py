@@ -213,6 +213,8 @@ def crawl(service: str, areas: list[str] | None, limit: int | None, shard: int |
         except (OSError, ValueError):
             pass
     jobs: list[tuple[str, str]] = []  # (slug, area) to fetch
+    alias_slugs: set[str] = set()     # TOC slugs that Learn serves as another page (their target is crawled under its own slug)
+    landing = {u for u, _ in spec["areas"]}
     for url_dir, subdir in spec["areas"]:
         area = url_dir.rsplit("/", 1)[-1]
         if areas and area not in areas:
@@ -250,8 +252,11 @@ def crawl(service: str, areas: list[str] | None, limit: int | None, shard: int |
             if canon and canon != slug.lower():
                 if canon in all_slugs or not canon.startswith(spec["url_prefix"]):
                     stats["aliases"] = stats.get("aliases", 0) + 1   # redirect: the target page is crawled under its own slug
+                    alias_slugs.add(slug)
                     continue
+                alias_slugs.add(slug)  # (listed under the old slug, stored under the real one)
                 slug = canon           # the TOC lists only the old slug: keep the page at its real URL
+                wanted.add(canon)      # ...and the deletion pass must not treat it as an upstream removal
             rel = spec["src_prefix"] + slug[len(spec["url_prefix"]):] + ".md"
         if isinstance(sp, str) and sp:
             tail = posixpath.normpath(sp)
@@ -286,6 +291,16 @@ def crawl(service: str, areas: list[str] | None, limit: int | None, shard: int |
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content, encoding="utf-8")
         stats["written"] += 1
+    # Coverage check: every page the TOC lists that was due today must now be in the corpus (or be an alias of one).
+    # A page that is listed on Learn but missing here would silently never be indexed.
+    due = [s for s, _ in jobs if s not in landing and (shard is None or shard_of(s) == shard)]
+    missing = sorted(s for s in due if s not in slugmap and s not in alias_slugs)
+    stats["missing"] = missing
+    if missing:
+        print(f"WARNING {len(missing)} of {len(due)} TOC pages due today are not in the corpus (fetch failed, no frontmatter or unsaved): "
+              + ", ".join(missing[:15]) + (" ..." if len(missing) > 15 else ""), flush=True)
+    else:
+        print(f"coverage ok: {len(due)} TOC pages due today, {len(due) - len(alias_slugs & set(due))} saved, {len(alias_slugs & set(due))} aliases", flush=True)
     # Explicit renames (e.g. .yml source now saved as .md): drop the old path.
     # Applies on every run: it only touches pages fetched (and rewritten) now.
     if renamed and (checkout / ".git").exists():
