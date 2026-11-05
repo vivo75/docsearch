@@ -56,16 +56,17 @@ def pull(cfg: Config) -> dict[str, str]:
     return out
 
 
-def make_plan(cfg: Config, db: sqlite3.Connection) -> Plan:
+def make_plan(cfg: Config, db: sqlite3.Connection, reprocess: frozenset[str] | set[str] = frozenset()) -> Plan:
+    """`reprocess`: repos to parse again in full although their git HEAD did not move (a parser/normaliser change, e.g. link resolution)."""
     meta = store.get_meta(db)
     repos: dict[str, RepoPlan] = {}
     for repo in cfg.repos:
         rp = RepoPlan(meta.get(f"head:{repo.name}"), head(repo))
         repos[repo.name] = rp
-        if rp.old == rp.new:
+        if rp.old == rp.new and repo.name not in reprocess:
             continue
         try:
-            if not rp.old:
+            if not rp.old or repo.name in reprocess:
                 raise subprocess.CalledProcessError(1, "no recorded head")
             cs = diff(repo, rp.old, rp.new)
         except subprocess.CalledProcessError:
@@ -153,7 +154,8 @@ def _delete_docs(db: sqlite3.Connection, repo: str, paths: set[str]) -> int:
 
 
 def update(cfg_path: str, out_dir: Path, *, do_pull: bool = False, dry_run: bool = False, force: bool = False,
-           max_unresolved: float = 0.15, workers: int | None = None, embedder=None, canary=None) -> dict:
+           max_unresolved: float = 0.15, workers: int | None = None, embedder=None, canary=None,
+           reprocess: frozenset[str] | set[str] = frozenset()) -> dict:
     cfg = load_config(cfg_path)
     link = out_dir / "current.db"
     src = link.resolve()
@@ -164,10 +166,10 @@ def update(cfg_path: str, out_dir: Path, *, do_pull: bool = False, dry_run: bool
             if status != "ok":
                 log(f"pull {name}: {status}")
     ro = store.connect(src, readonly=True)
-    plan = make_plan(cfg, ro)
+    plan = make_plan(cfg, ro, reprocess)
     ro.close()
     for name, rp in plan.repos.items():
-        if rp.old != rp.new:
+        if rp.old != rp.new or name in reprocess:
             log(f"{name}: {(rp.old or 'none')[:8]} -> {rp.new[:8]}  {'FULL reprocess' if rp.full else f'{len(rp.changed)} files'}"
                 f"; reprocess {len(rp.pages)} pages, remove {len(rp.removed)}")
     stats.update(reprocess=plan.n_reprocess, removed=plan.n_removed)

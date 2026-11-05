@@ -69,6 +69,8 @@ def docs(out):
 def test_noop_then_incremental_changes(env):
     repo, cfg, out = env
     assert update(cfg, out, workers=1, embedder=FakeEmb())["status"] == "up-to-date"
+    st = update(cfg, out, dry_run=True, reprocess={"r"})                          # same HEAD, but the repo is parsed again in full
+    assert st["status"] == "dry-run" and st["reprocess"] > 0
     before = (out / "current.db").resolve().name
 
     (repo / "includes/inc.md").write_text("Shared note about quotas and limits.")     # dependency of a.md only
@@ -82,6 +84,7 @@ def test_noop_then_incremental_changes(env):
     rp = plan.repos["r"]
     assert rp.pages == {"articles/a.md", "articles/b.md", "articles/e.md"} and rp.removed == {"articles/d.md"} and not rp.full
     assert update(cfg, out, dry_run=True)["status"] == "dry-run" and (out / "current.db").resolve().name == before
+    assert make_plan(__import__("docsearch.config", fromlist=["load_config"]).load_config(cfg), db, {"r"}).repos["r"].full      # --reprocess forces a full parse
 
     emb = FakeEmb()
     st = update(cfg, out, workers=1, embedder=emb)

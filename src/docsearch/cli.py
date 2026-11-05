@@ -29,6 +29,7 @@ def main(argv: list[str] | None = None) -> None:
     u.add_argument("--pull", action="store_true", help="git pull --ff-only every repo first")
     u.add_argument("--dry-run", action="store_true", help="show what would change, write nothing")
     u.add_argument("--force", action="store_true", help="publish even if health checks fail")
+    u.add_argument("--reprocess", help="comma-separated repos to parse again in full although their git HEAD did not move (after a parser/link-resolution change)")
     u.add_argument("--canary", action="store_true", help="run the canary queries (needs the embedding server) before publishing")
     c = sub.add_parser("changes", help="report of what changed in the git repos in the last update (optionally summarised by the local Gemma)")
     c.add_argument("--config", default=str(HERE / "repos.toml"))
@@ -71,7 +72,8 @@ def main(argv: list[str] | None = None) -> None:
         canary = None
         if a.canary:
             from .canary import run_canaries as canary
-        print(json.dumps(update(a.config, a.out, do_pull=a.pull, dry_run=a.dry_run, force=a.force, canary=canary), indent=2))
+        print(json.dumps(update(a.config, a.out, do_pull=a.pull, dry_run=a.dry_run, force=a.force, canary=canary,
+                                reprocess=set(filter(None, (a.reprocess or "").split(",")))), indent=2))
     elif a.cmd == "changes":
         from .changes import run
         from .config import load_config
