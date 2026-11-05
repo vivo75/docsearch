@@ -668,8 +668,14 @@ class Searcher:
                 break
             out.append(block)
             i += 1
-        return {**meta, **self._toc_field(d["doc_id"]), "text": "\n\n".join(out), "chunks_returned": len(out), "chunks_total": len(rows),
-                "next_offset": i if i < len(rows) else None}
+        res = {**meta, **self._toc_field(d["doc_id"]), "text": "\n\n".join(out), "chunks_returned": len(out), "chunks_total": len(rows),
+               "next_offset": i if i < len(rows) else None}
+        if i < len(rows):                # say loudly that the page goes on, and where (a caller that reads only `text` would take the start for the whole page)
+            heads = list(dict.fromkeys(r["heading_path"] for r in rows[i:] if r["heading_path"]))
+            res.update(truncated=True, omitted_headings=heads[:25], omitted_headings_total=len(heads),
+                       note=f"PARTIAL: chunks {offset + 1}-{i} of {len(rows)} shown. The rest is not in `text`: call read_doc again with offset={i}, "
+                            f"or with section=<heading> (see omitted_headings, or outline_doc) to jump to a part.")
+        return res
 
     @_locked
     def outline_doc(self, ref: str) -> dict:

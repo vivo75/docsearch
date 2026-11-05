@@ -252,7 +252,7 @@ def make_server(db_path: Path | None = None, config: str | None = None) -> MCPSe
                  max_tokens: int = 6000, url: str | None = None) -> dict:
         """Read an indexed page (resolved: includes and code snippets expanded) by Learn URL or 'repo/path.md'.
         Follows redirects. Optionally restrict to a section (heading text or anchor) or one variant (e.g. 'azure-cli').
-        Large pages are paged: pass next_offset back as offset. `url` is accepted as a synonym of `path`."""
+        Large pages are paged: when the result has truncated=true (note, next_offset, omitted_headings), the rest of the page is NOT in `text`; pass next_offset back as offset or a heading as section. `url` is accepted as a synonym of `path`."""
         if not (path or url):
             return {"error": "pass path (a Learn URL or repo/path.md)"}
         return searcher.read_doc(path or url, section, variant, max(0, offset), max(500, min(max_tokens, 20000)))

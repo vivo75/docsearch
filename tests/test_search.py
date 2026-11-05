@@ -132,6 +132,9 @@ def test_read_doc_lookup_redirect_variant_section_paging(idx):
     assert "Rotate account keys with the CLI" in s.read_doc("articles/storage/create.md", section="next steps", variant="azure-cli")["text"]
     r = s.read_doc("articles/storage/create.md", max_tokens=1)
     assert r["chunks_returned"] == 1 and r["next_offset"] == 1
+    assert r["truncated"] is True and "PARTIAL" in r["note"] and "offset=1" in r["note"] and r["omitted_headings_total"] == len(r["omitted_headings"])
+    full = s.read_doc("articles/storage/create.md", max_tokens=20000)
+    assert full["next_offset"] is None and "truncated" not in full and "note" not in full
     assert "error" in s.read_doc("https://learn.microsoft.com/azure/nothing")
 
 
