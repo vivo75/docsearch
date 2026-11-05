@@ -2,3 +2,60 @@
 [canary]
 min_pass = 0.85
 ids = ["q001", "q002", "q003", "q004", "q005", "q006", "q007", "q009", "q019", "q020", "q025", "q026", "q027", "q028", "q029"]
+
+# Questions from a real AKS-upgrade session (2026-11-05, AKS-upgrade-docsearch.tar). Each lists the source files that must appear in the top `top` pages.
+# `known_gap = true`: fails today (see Backlog.md); reported in the log, never blocks. Remove the flag once it passes.
+[[query]]
+id = "aks-skip-minor"
+service = "azure-kubernetes-service"
+question = "upgrade an AKS cluster control plane and node pools sequentially minor version, skip minor versions, upgrade-aks-cluster"
+expect = ["azure-aks-docs/articles/aks/upgrade-aks-control-plane.md"]
+
+[[query]]
+id = "aks-surge-pdb"
+service = "azure-kubernetes-service"
+question = "node surge upgrade maxSurge maxUnavailable pod disruption budget drain timeout node soak duration undrainable nodes during AKS upgrade"
+expect = ["azure-aks-docs/articles/aks/upgrade-aks-node-pools-rolling.md"]
+
+[[query]]
+id = "aks-ubuntu-2204"
+service = "azure-kubernetes-service"
+question = "Ubuntu 22.04 node image end of support AKS migrate to Ubuntu 24.04 osSKU Kubernetes version"
+expect = ["azure-aks-docs/articles/aks/node-images.md", "azure-aks-docs/articles/aks/upgrade-os-version.md"]
+
+[[query]]
+id = "aks-api-breaking"
+service = "azure-kubernetes-service"
+question = "stop AKS cluster upgrade on deprecated API usage detect removed Kubernetes APIs before upgrade"
+expect = ["azure-aks-docs/articles/aks/stop-cluster-upgrade-api-breaking-changes.md"]
+
+[[query]]
+id = "aks-private-invoke"
+service = "azure-kubernetes-service"
+question = "az aks command invoke run kubectl on private AKS cluster without network access, private cluster API server access options"
+expect = ["azure-aks-docs/articles/aks/access-private-cluster.md"]
+
+[[query]]
+id = "k8s-api-removals"
+question = "Kubernetes API removals deprecated API migration guide 1.32 1.33 1.34 1.35"
+expect = ["kubernetes-docs/docs/reference/using-api/deprecation-guide.md"]
+
+[[query]]
+id = "azurerm-aks-upgrade"
+question = "Terraform azurerm_kubernetes_cluster upgrade Kubernetes version kubernetes_version orchestrator_version default_node_pool automatic_upgrade_channel drift"
+expect = ["azurerm-docs/resources/kubernetes_cluster.md"]
+top = 5
+
+[[query]]
+id = "aks-nginx-retirement"
+service = "azure-kubernetes-service"
+question = "NGINX ingress controller web application routing add-on retirement, Ingress NGINX end of support, migrate to Gateway API or Application Gateway for Containers"
+# fails because the page has service: null and the filter excludes it (Backlog 5)
+expect = ["azure-aks-docs/articles/aks/app-routing-nginx-to-gateway-api-migration.md"]
+known_gap = true
+
+[[query]]
+id = "aks-pipelines-private"
+question = "run az aks upgrade from Azure Pipelines with AzureCLI@2 task on Ubuntu self-hosted agent private AKS cluster"
+# retrieval stage only: the canary has no reranker, so it does not see the production symptom (page last, no relevance; Backlog 1)
+expect = ["architecture-center/docs/guide/aks/aks-firewall.md"]

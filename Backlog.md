@@ -23,7 +23,7 @@ Stato: `[ ]` da fare, `[~]` in corso, `[x]` fatto.
 7. [ ] **`read_doc` senza `section` su pagine lunghe** restituisce solo l'inizio senza dirlo chiaramente: indicare "chunk k/N, resto omesso" e offrire l'indice delle sezioni.
 8. [ ] **Contraddizioni tra fonti** (skip dei minor "uno alla volta" vs FAQ; "2 minor" vs N-3): segnalare il conflitto e quale fonte è più recente.
 9. [ ] **Buchi di corpus**: upgrade di cluster Stopped avviato dall'utente; annotazioni LB interno con Gateway API di app-routing.
-10. [ ] **Canarie dalle query dell'archivio** (005, 006, 010, 012, 023, 026) in `canaries.toml`: pagina attesa e posizione massima accettata.
+10. [x] **Canarie dalle query dell'archivio** (005, 006, 010, 012, 023, 026) in `canaries.toml` (`[[query]]`, supporto in `canary.py`; 9 voci, 2026-11-05). Verificato sull'indice attuale: 8 passano, `aks-nginx-retirement` è `known_gap` (causa: punto 5, `service: null`). Limite: il canarino non usa il reranker, quindi `aks-pipelines-private` passa e NON vede il sintomo del punto 1. Non coperte (nessuna pagina attesa, buchi di corpus): 012, 023, 026.
 11. [ ] Query 010 (provider azurerm 3.x->4.x, `kubernetes_version` drift) non rieseguita: verificare se la guida di upgrade 4.0 è indicizzata (azurerm-docs).
 
 ## Note
