@@ -10,6 +10,7 @@ Everything that cannot be resolved statically is reported in `unresolved` instea
 from __future__ import annotations
 
 import re
+import subprocess
 import urllib.request
 from pathlib import Path
 
@@ -168,6 +169,24 @@ def _composite(n: Node | None) -> Node | None:
 def tag() -> str:
     m = re.search(r"go-azure-sdk/resource-manager (v[\w.]+)", (PROVIDER / "go.mod").read_text())
     return m.group(1) if m else "main"
+
+
+def provenance() -> dict:
+    """Where the facts come from: repositories, pinned revisions and the license detected in each LICENSE file. No source text is included."""
+    def lic(text: str) -> str:
+        return "MPL-2.0" if "Mozilla Public License Version 2.0" in text else "unknown"
+    rev = subprocess.run(["git", "-C", str(PROVIDER), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip() or None
+    prov_lic = (PROVIDER / "LICENSE").read_text(encoding="utf-8", errors="replace") if (PROVIDER / "LICENSE").exists() else ""
+    cached = CACHE / tag() / "LICENSE"
+    if not cached.exists():
+        try:
+            cached.parent.mkdir(parents=True, exist_ok=True)
+            cached.write_text(urllib.request.urlopen(f"https://raw.githubusercontent.com/hashicorp/go-azure-sdk/main/LICENSE", timeout=30).read().decode("utf-8"), encoding="utf-8")
+        except Exception:
+            cached.write_text("", encoding="utf-8")
+    return {"provider": {"repo": "hashicorp/terraform-provider-azurerm", "revision": rev, "license": lic(prov_lic)},
+            "sdk": {"repo": "hashicorp/go-azure-sdk", "tag": tag(), "license": lic(cached.read_text(encoding="utf-8")) if cached.exists() else "unknown"},
+            "note": "facts derived from the source code; no source text is reproduced; both repositories are Mozilla Public License 2.0, copyright HashiCorp"}
 
 
 def sdk_file(import_path: str, filename: str) -> str | None:
@@ -636,7 +655,7 @@ def extract(name: str, kind: str = "resource") -> dict:
     helpers = {k for k in pkg_funcs if "." not in k and re.match(r"(expand|flatten)", k)}
     ctx["pkg_funcs"] = pkg_funcs
     clients = service_clients(svc_dir)
-    out: dict = {"resource": name, "style": style, "source": str(path.relative_to(PROVIDER)), "arguments": {}, "attributes": [], "crud": {}}
+    out: dict = {"resource": name, "style": style, "defined_in": str(path.relative_to(PROVIDER)), "provenance": provenance(), "arguments": {}, "attributes": [], "crud": {}}
     bodies: dict[str, tuple[Src, Node]] = {}
     if style == "typed":
         for meth, key in (("Arguments", "arguments"), ("Attributes", "attributes")):
