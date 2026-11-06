@@ -23,7 +23,7 @@ def run_canaries(db_path: Path, path: Path = HERE / "canaries.toml") -> list[str
         for qid in spec["ids"]:
             q = qs[qid]
             res = s.search(q["question"], limit=10, max_tokens=10**6)
-            if any("semantic search" in w for w in res["warnings"]):      # e.g. wrong embedding dimension: never publish lexical-only
+            if any("semantic search unavailable" in w for w in res["warnings"]):      # e.g. wrong embedding dimension: never publish lexical-only
                 return [f"semantic search unavailable during canaries: {res['warnings']}"]
             pages = list(dict.fromkeys(h["source"] for h in res["hits"]))[:5]
             if not set(pages) & set(q["gold"]):

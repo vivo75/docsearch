@@ -143,7 +143,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(); ap.add_argument("--pull", action="store_true")
     a = ap.parse_args()
     if a.pull:
-        subprocess.run(["git", "-C", str(SRC), "pull", "-q", "--ff-only"], check=True)
+        subprocess.run(["git", "-C", str(SRC), "pull", "-q", "--ff-only", "--no-recurse-submodules"], check=True)   # the sparse clone cannot fetch the website submodules
     if not EN.is_dir():
         sys.exit(f"{EN} missing: see the docstring (sparse clone of kubernetes/website)")
     files = want()

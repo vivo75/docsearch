@@ -395,7 +395,9 @@ def test_relevance_is_calibrated_per_hit_and_falls_with_position(idx):
 def test_vecmat_status_warning_and_check(idx, monkeypatch):
     s = S(idx)
     assert s.status()["vecmat"]["in_use"] is False and "missing" in s.status()["vecmat"]["reason"]
-    assert any("exact vector cache not in use" in w and "missing" in w for w in s.search("restrict network access firewall")["warnings"])
+    ws = s.search("restrict network access firewall")["warnings"]
+    assert any("exact vector cache not in use" in w and "missing" in w for w in ws)
+    assert not any("semantic search" in w for w in ws)      # canary.py treats "semantic search unavailable" as fatal: a slow-path notice must never match it
     assert vecmat.check(idx)["problems"] == ["cache file missing"]
     vecmat.build(idx)
     s = S(idx)

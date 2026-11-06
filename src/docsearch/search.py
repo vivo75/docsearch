@@ -347,7 +347,7 @@ class Searcher:
         wanted_vec = ([("vector_x", f"{query} {qx}")] if qx and c.expand_vec and self.embed_query else []) + \
                      ([("vector", query)] if c.vector and self.embed_query else [])
         if wanted_vec and self.vecmat is None and self._vecmat_why and not self._vecmat_why.startswith("disabled"):
-            warnings.append(f"exact vector cache not in use ({self._vecmat_why}): semantic search falls back to the sqlite-vec scan, several times slower")
+            warnings.append(f"exact vector cache not in use ({self._vecmat_why}): vector queries fall back to the sqlite-vec scan, several times slower")
         for name, text in wanted_vec:
             try:
                 blobs[name] = _vec_blob(self.embed_query(text))
